@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+enableFeaturePreview('VERSION_CATALOGS')
+
+rootProject.name = "e-bus-ticket"
+include ':app'
