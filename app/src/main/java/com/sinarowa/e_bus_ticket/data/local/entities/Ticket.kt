@@ -10,5 +10,7 @@ data class Ticket(
     val fromStop: String,
     val toStop: String,
     val price: Double,
-    val timestamp: Long
+    val timestamp: Long,
+    val isCancelled: Int = 0, // 0 = Not Cancelled, 1 = Cancelled
+    val cancelReason: String? = null
 )

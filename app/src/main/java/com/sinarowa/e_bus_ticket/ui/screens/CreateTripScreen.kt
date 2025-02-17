@@ -1,11 +1,14 @@
 package com.sinarowa.e_bus_ticket.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
@@ -19,6 +22,7 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
 
     var selectedRoute by remember { mutableStateOf<RouteEntity?>(null) }
     var selectedBus by remember { mutableStateOf<BusEntity?>(null) }
+    var isCreatingTrip by remember { mutableStateOf(false) } // ✅ State for button loading
 
     LaunchedEffect(Unit) {
         viewModel.loadRoutes()
@@ -26,45 +30,63 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White) // White background
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Select Route", style = MaterialTheme.typography.h6)
+        Text("Create a New Trip", style = MaterialTheme.typography.h5, color = Color(0xFF1565C0))
 
-        // ✅ Route Dropdown (Only shows route name)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // ✅ Route Dropdown (Displays route names)
         DropdownMenuComponent(
             label = "Select Route",
             items = routes,
             selectedItem = selectedRoute,
             onSelectionChanged = { selectedRoute = it },
-            displayText = { it.name }  // ✅ Extracts only the route name
+            displayText = { it.name }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        Text("Select Bus", style = MaterialTheme.typography.h6)
-
-        // ✅ Bus Dropdown (Only shows bus name)
+        // ✅ Bus Dropdown (Displays bus names)
         DropdownMenuComponent(
             label = "Select Bus",
             items = buses,
             selectedItem = selectedBus,
             onSelectionChanged = { selectedBus = it },
-            displayText = { it.busName }  // ✅ Extracts only the bus name
+            displayText = { it.busName }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // ✅ Create Trip Button
         Button(
             onClick = {
-                if (selectedRoute != null && selectedBus != null) {
-                    viewModel.createTrip(selectedRoute!!, selectedBus!!)
-                    navController.popBackStack()
+                isCreatingTrip = true
+                selectedRoute?.let { route ->
+                    selectedBus?.let { bus ->
+                        viewModel.createTrip(route, bus)
+                        navController.popBackStack()
+                    }
                 }
+                isCreatingTrip = false
             },
-            enabled = selectedRoute != null && selectedBus != null,
-            modifier = Modifier.fillMaxWidth()
+            enabled = selectedRoute != null && selectedBus != null && !isCreatingTrip,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFFFEB3B)) // Yellow
         ) {
-            Text("Create Trip")
+            if (isCreatingTrip) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.Black
+                )
+            } else {
+                Text("Create Trip", color = Color.Black)
+            }
         }
     }
 }
@@ -78,7 +100,7 @@ fun <T> DropdownMenuComponent(
     items: List<T>,
     selectedItem: T?,
     onSelectionChanged: (T) -> Unit,
-    displayText: (T) -> String  // ✅ Extracts only the name for display
+    displayText: (T) -> String
 ) {
     var expanded by remember { mutableStateOf(false) }
     var selectedText by remember { mutableStateOf(label) }
@@ -93,14 +115,18 @@ fun <T> DropdownMenuComponent(
                 IconButton(onClick = { expanded = !expanded }) {
                     Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
                 }
-            }
+            },
+            colors = TextFieldDefaults.outlinedTextFieldColors(
+                focusedBorderColor = Color(0xFF1565C0), // Matching primary blue color
+                unfocusedBorderColor = Color.Gray
+            )
         )
 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             items.forEach { item ->
                 DropdownMenuItem(onClick = {
                     onSelectionChanged(item)
-                    selectedText = displayText(item)  // ✅ Show only relevant name
+                    selectedText = displayText(item)
                     expanded = false
                 }) {
                     Text(displayText(item))

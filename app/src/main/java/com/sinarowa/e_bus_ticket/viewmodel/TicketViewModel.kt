@@ -50,6 +50,19 @@ class TicketViewModel @Inject constructor(
         }
     }
 
+
+    suspend fun cancelTicket(ticketId: String, cancelReason: String, activeTripId: String): Boolean {
+        val ticket = ticketRepository.getTicketById(ticketId) // Fetch ticket by ID
+
+        return if (ticket != null && ticket.tripId == activeTripId) {
+            // ✅ Ensure ticket belongs to the active trip before canceling
+            ticketRepository.cancelTicket(ticketId, 1, cancelReason)
+            true
+        } else {
+            false // ❌ Ticket does not belong to the active trip or does not exist
+        }
+    }
+
     /**
      * ✅ Get city name based on GPS coordinates
      */

@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
 import com.sinarowa.e_bus_ticket.utils.BluetoothHelper
+import com.sinarowa.e_bus_ticket.viewmodel.ExpensesViewModel
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -60,6 +61,7 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             val tripViewModel: TripViewModel = hiltViewModel()
             val ticketViewModel: TicketViewModel = hiltViewModel()
+            val expensesViewModel: ExpensesViewModel = hiltViewModel()
 
             // ✅ Initialize BluetoothHelper with context
             val bluetoothHelper = remember { BluetoothPrinterHelper(this) }
@@ -85,8 +87,15 @@ class MainActivity : ComponentActivity() {
 
                     trip?.let { TripDashboardScreen(it, navController, ticketViewModel) }
                 }
+                composable("expenses/{tripId}"){ backStackEntry ->
+                    val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
+                    LogExpensesScreen(tripId,navController,expensesViewModel)  // ✅ Added
+                }
 
-
+                composable("cancelTicket/{tripId}"){ backStackEntry ->
+                    val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
+                    CancelTicketScreen(navController,ticketViewModel,tripId)  // ✅ Added
+                }
 
             }
         }
