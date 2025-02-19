@@ -23,11 +23,33 @@ class TicketRepository @Inject constructor(
        return ticketDao.getTicketById(ticketId)
     }
 
-    suspend fun getAllTickets(): List<Ticket> {
+    fun getAllTickets(): Flow<List<Ticket>> {
         return ticketDao.getAllTickets()
     }
 
     suspend fun cancelTicket(ticketId: String,isCancelled: Int,cancelReason: String){
         return ticketDao.updateTicketCancellation(ticketId,isCancelled,cancelReason)
+    }
+
+    suspend fun calculateStationSales(tripId: String): Map<String, Pair<Int, Double>> {
+        val tickets = ticketDao.getTicketsForTrip(tripId)
+
+        return tickets.groupBy { it.fromStop }
+            .mapValues { (_, ticketList) ->
+                val count = ticketList.size
+                val amount = ticketList.sumOf { it.price }
+                count to amount
+            }
+    }
+
+    suspend fun calculateTicketBreakdown(tripId: String): Map<Pair<String, String>, Pair<Int, Double>> {
+        val tickets = ticketDao.getTicketsForTrip(tripId)
+
+        return tickets.groupBy { it.fromStop to it.toStop }
+            .mapValues { (_, ticketList) ->
+                val count = ticketList.size
+                val amount = ticketList.sumOf { it.price }
+                count to amount
+            }
     }
 }

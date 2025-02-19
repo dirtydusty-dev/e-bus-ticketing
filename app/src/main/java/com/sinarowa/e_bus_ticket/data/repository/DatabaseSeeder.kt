@@ -24,20 +24,19 @@ object DatabaseSeeder {
 
             // ✅ Insert Prices (All permutations)
             val prices = listOf(
-                PriceEntity(fromCity = "Harare", toCity = "Bulawayo", adultPrice = 20.0, childPrice = 10.0, luggagePrice = 5.0),
-                PriceEntity(fromCity = "Harare", toCity = "Kadoma", adultPrice = 5.0, childPrice = 3.0, luggagePrice = 2.0),
-                PriceEntity(fromCity = "Harare", toCity = "Kwekwe", adultPrice = 10.0, childPrice = 5.0, luggagePrice = 3.0),
-                PriceEntity(fromCity = "Harare", toCity = "Gweru", adultPrice = 15.0, childPrice = 7.0, luggagePrice = 4.0),
-                PriceEntity(fromCity = "Kadoma", toCity = "Kwekwe", adultPrice = 5.0, childPrice = 3.0, luggagePrice = 2.0),
-                PriceEntity(fromCity = "Kadoma", toCity = "Gweru", adultPrice = 10.0, childPrice = 5.0, luggagePrice = 3.0),
-                PriceEntity(fromCity = "Kwekwe", toCity = "Gweru", adultPrice = 5.0, childPrice = 3.0, luggagePrice = 2.0),
-                PriceEntity(fromCity = "Gweru", toCity = "Bulawayo", adultPrice = 5.0, childPrice = 3.0, luggagePrice = 2.0),
-
-                PriceEntity(fromCity = "Harare", toCity = "Mutare", adultPrice = 15.0, childPrice = 8.0, luggagePrice = 4.0),
-                PriceEntity(fromCity = "Harare", toCity = "Marondera", adultPrice = 3.0, childPrice = 2.0, luggagePrice = 1.0),
-                PriceEntity(fromCity = "Harare", toCity = "Rusape", adultPrice = 10.0, childPrice = 5.0, luggagePrice = 3.0),
-                PriceEntity(fromCity = "Marondera", toCity = "Rusape", adultPrice = 7.0, childPrice = 4.0, luggagePrice = 2.0),
-                PriceEntity(fromCity = "Rusape", toCity = "Mutare", adultPrice = 5.0, childPrice = 3.0, luggagePrice = 2.0)
+                PriceEntity(fromCity = "Harare", toCity = "Bulawayo", adultPrice = 20.0),
+                PriceEntity(fromCity = "Harare", toCity = "Kadoma", adultPrice = 5.0),
+                PriceEntity(fromCity = "Harare", toCity = "Kwekwe", adultPrice = 10.0),
+                PriceEntity(fromCity = "Harare", toCity = "Gweru", adultPrice = 15.0),
+                PriceEntity(fromCity = "Kadoma", toCity = "Kwekwe", adultPrice = 5.0),
+                PriceEntity(fromCity = "Kadoma", toCity = "Gweru", adultPrice = 10.0),
+                PriceEntity(fromCity = "Kwekwe", toCity = "Gweru", adultPrice = 5.0),
+                PriceEntity(fromCity = "Gweru", toCity = "Bulawayo", adultPrice = 5.0),
+                PriceEntity(fromCity = "Harare", toCity = "Mutare", adultPrice = 15.0),
+                PriceEntity(fromCity = "Harare", toCity = "Marondera", adultPrice = 3.0),
+                PriceEntity(fromCity = "Harare", toCity = "Rusape", adultPrice = 10.0),
+                PriceEntity(fromCity = "Marondera", toCity = "Rusape", adultPrice = 7.0),
+                PriceEntity(fromCity = "Rusape", toCity = "Mutare", adultPrice = 5.0)
             )
             priceDao.insertPrices(prices)
 

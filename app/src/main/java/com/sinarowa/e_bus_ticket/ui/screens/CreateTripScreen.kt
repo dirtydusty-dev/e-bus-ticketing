@@ -103,11 +103,11 @@ fun <T> DropdownMenuComponent(
     displayText: (T) -> String
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedText by remember { mutableStateOf(label) }
+    val selectedText by rememberUpdatedState(newValue = selectedItem?.let { displayText(it) } ?: label)
 
     Box(modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
-            value = selectedText,
+            value = selectedText, // ✅ No recomputation issue
             onValueChange = {},
             readOnly = true,
             modifier = Modifier.fillMaxWidth(),
@@ -117,7 +117,7 @@ fun <T> DropdownMenuComponent(
                 }
             },
             colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = Color(0xFF1565C0), // Matching primary blue color
+                focusedBorderColor = Color(0xFF1565C0),
                 unfocusedBorderColor = Color.Gray
             )
         )
@@ -126,7 +126,6 @@ fun <T> DropdownMenuComponent(
             items.forEach { item ->
                 DropdownMenuItem(onClick = {
                     onSelectionChanged(item)
-                    selectedText = displayText(item)
                     expanded = false
                 }) {
                     Text(displayText(item))

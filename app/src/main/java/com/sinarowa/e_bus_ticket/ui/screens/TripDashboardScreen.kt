@@ -16,15 +16,18 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
 import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
+import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun TripDashboardScreen(
     trip: TripDetails,
     navController: NavController,
-    ticketViewModel: TicketViewModel
+    ticketViewModel: TicketViewModel,
+    tripViewModel: TripViewModel
 ) {
     val ticketCount by ticketViewModel.ticketCount.collectAsState()
+    var showEndTripDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(trip.tripId) {
@@ -60,9 +63,15 @@ fun TripDashboardScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         DashboardButton(
-            text = "Sell Tickets",
+            text = "Passenger Tickets",
             color = Color(0xFFFFEB3B), // Yellow
             onClick = { navController.navigate("passengerTickets/${trip.tripId}") }
+        )
+
+        DashboardButton(
+            text = "Luggage Tickets",
+            color = Color(0xFFFFEB3B), // Yellow
+            onClick = { navController.navigate("luggageTickets/${trip.tripId}") }
         )
 
         DashboardButton(
@@ -74,22 +83,47 @@ fun TripDashboardScreen(
         DashboardButton(
             text = "View Reports",
             color = Color(0xFF1565C0), // Blue
-            onClick = { navController.navigate("tripReports/${trip.tripId}") }
+            onClick = { navController.navigate("reports/${trip.tripId}") }
         )
 
-        DashboardButton(
+        /*DashboardButton(
             text = "Cancel Ticket",
             color = Color(0xFFFFEB3B), // Yellow
             onClick = { navController.navigate("cancelTicket/${trip.tripId}") }
-        )
+        )*/
 
         DashboardButton(
             text = "End Trip",
             color = Color.Red, // Red for danger action
-            onClick = {
-                scope.launch {
-                    // ticketViewModel.endTrip(trip.tripId)  // ✅ End trip logic
-                    navController.popBackStack()
+            onClick = { showEndTripDialog = true }
+        )
+    }
+    if (showEndTripDialog) {
+        AlertDialog(
+            onDismissRequest = { showEndTripDialog = false },
+            title = { Text("Confirm End Trip", color = Color(0xFF1565C0), fontSize = 20.sp) },
+            text = { Text("Are you sure you want to end this trip? Once ended, you will not be able to add tickets, log expenses, or make further changes.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            tripViewModel.endTrip(trip.tripId)
+                            showEndTripDialog = false
+                            navController.popBackStack()
+                        }
+                        showEndTripDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)
+                ) {
+                    Text("Yes, End Trip", color = Color.White)
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { showEndTripDialog = false },
+                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.Gray)
+                ) {
+                    Text("Cancel", color = Color.White)
                 }
             }
         )

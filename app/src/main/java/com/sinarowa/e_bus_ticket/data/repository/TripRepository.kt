@@ -13,12 +13,22 @@ class TripRepository @Inject constructor(
      */
     fun getAllTrips(): Flow<List<TripDetails>> = tripDao.getAllTrips()
 
+
+    fun getAllActiveTrips(): Flow<List<TripDetails>> = tripDao.getAllActiveTrips()
+
     /**
      * Fetch a single trip by ID from the database
      */
     suspend fun getTripById(tripId: String): TripDetails? {
         return tripDao.getTripById(tripId)
     }
+
+
+    suspend fun endTripById(tripId: String,isComplete: Int,endTripCompleteTime: String){
+        return tripDao.endTrip(tripId,isComplete,endTripCompleteTime)
+    }
+
+
 
     /**
      * Inserts a trip into the database

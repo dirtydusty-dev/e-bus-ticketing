@@ -8,10 +8,16 @@ import kotlinx.coroutines.flow.Flow
 interface TicketDao {
 
     @Query("SELECT * FROM tickets")
-    suspend fun getAllTickets(): List<Ticket>  // ✅ Fetch all unsynced tickets
+    fun getAllTickets(): Flow<List<Ticket>>  // ✅ Fetch all unsynced tickets
 
     @Query("SELECT * FROM tickets WHERE tripId = :tripId")
     fun getTicketsByTrip(tripId: String): Flow<List<Ticket>>
+
+    @Query("SELECT * FROM tickets WHERE tripId = :tripId")
+    suspend fun getTicketsForTrip(tripId: String): List<Ticket>
+
+    @Query("SELECT COUNT(*) FROM tickets WHERE tripId = :tripId")
+    fun getTicketCountForTrip(tripId: String): Flow<Int>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTicket(ticket: Ticket)

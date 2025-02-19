@@ -93,7 +93,7 @@ fun CancelTicketScreen(
 
     }
 
-    if (showConfirmation) {
+   if (showConfirmation) {
         AlertDialog(
             onDismissRequest = { showConfirmation = false },
             title = { Text("Success", color = Color(0xFF1565C0), fontSize = 20.sp) },

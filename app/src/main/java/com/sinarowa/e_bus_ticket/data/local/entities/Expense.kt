@@ -1,6 +1,7 @@
 package com.sinarowa.e_bus_ticket.data.local.entities
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.sinarowa.e_bus_ticket.utils.TimeUtils.getFormattedTimestamp
 
 @Entity(tableName = "expenses")
 data class Expense(
@@ -9,5 +10,6 @@ data class Expense(
     val type: String,
     val amount: Double,
     val description: String,
-    val timestamp: Long
+    val creationTime: String = getFormattedTimestamp(),
+    val location: String
 )

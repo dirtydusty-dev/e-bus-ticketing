@@ -15,9 +15,10 @@ import com.sinarowa.e_bus_ticket.data.local.entities.*
         RouteEntity::class,   // ✅ Added
         LocationEntity::class, // ✅ Added
         PriceEntity::class,   // ✅ Added
-        BusEntity::class      // ✅ Added
+        BusEntity::class, // ✅ Added
+        SyncQueue::class
     ],
-    version = 2, // ✅ Increment version if you changed schema
+    version = 3, // ✅ Increment version if you changed schema
     exportSchema = false
 )
 abstract class BusTicketingDatabase : RoomDatabase() {
@@ -29,6 +30,7 @@ abstract class BusTicketingDatabase : RoomDatabase() {
     abstract fun locationDao(): LocationDao
     abstract fun priceDao(): PriceDao
     abstract fun busDao(): BusDao
+    abstract fun syncQueueDao(): SyncQueueDao
 
     companion object {
         @Volatile

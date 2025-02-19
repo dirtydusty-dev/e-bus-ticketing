@@ -10,7 +10,8 @@ data class PriceEntity(
     @ColumnInfo(name = "from") val fromCity: String,  // ✅ Renamed in Kotlin
     @ColumnInfo(name = "to") val toCity: String,
     val adultPrice: Double,
-    val childPrice: Double,
-    val luggagePrice: Double
+    val childPrice: Double? = adultPrice/2,
+    val dollarShort: Double? = adultPrice - 1,
+    val twoDollarShort: Double? = adultPrice -2
 )
 

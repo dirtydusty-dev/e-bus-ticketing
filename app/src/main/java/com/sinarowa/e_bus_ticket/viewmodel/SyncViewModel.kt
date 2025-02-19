@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,14 +8,19 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class SyncViewModel @Inject constructor(
+class SyncViewModel @Inject constructor(*/
+/**//*
+
     private val syncRepository: SyncRepository
 ) : ViewModel() {
 
-    fun syncData() {
+    fun syncData() {*/
+/**//*
+
         viewModelScope.launch {
             syncRepository.syncTickets()
             syncRepository.syncExpenses()
         }
     }
 }
+*/

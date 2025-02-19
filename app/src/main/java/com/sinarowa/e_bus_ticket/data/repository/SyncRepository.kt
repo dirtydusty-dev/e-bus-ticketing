@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.data.repository
 
 
@@ -20,7 +21,7 @@ class SyncRepository @Inject constructor(
             val ticketRequest = TicketUploadRequest(
                 tickets = offlineTickets.map {
                     TicketData(
-                        it.ticketId, it.tripId, it.fromStop, it.toStop, it.price, it.timestamp
+                        it.ticketId, it.tripId, it.fromStop, it.toStop, it.price, it.creationTime
                     )
                 }
             )
@@ -50,3 +51,4 @@ class SyncRepository @Inject constructor(
         }
     }
 }
+*/

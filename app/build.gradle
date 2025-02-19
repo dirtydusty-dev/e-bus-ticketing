@@ -108,9 +108,18 @@ dependencies {
     // ✅ Kotlin Coroutines (Use version compatible with Kotlin 1.6.10)
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0"
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.6.0'
 
     androidTestImplementation "androidx.compose.ui:ui-test-junit4:1.3.0"
     debugImplementation "androidx.compose.ui:ui-test-manifest:1.2.1"
+
+
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
+
+    implementation 'androidx.print:print:1.0.0'
+    implementation 'com.itextpdf:itext7-core:7.1.15'
+
+    implementation 'com.github.librepdf:openpdf:1.3.30'
 
 }
 

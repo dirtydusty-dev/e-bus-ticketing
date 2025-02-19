@@ -23,6 +23,7 @@ class BluetoothHelper(private val context: Context) {
         }
     }
 
+
     /**
      * ✅ Request Bluetooth permissions at runtime (Android 12+)
      */

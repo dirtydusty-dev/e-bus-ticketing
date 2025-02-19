@@ -63,7 +63,7 @@ fun HomeScreen(tripViewModel: TripViewModel, navController: NavController) {
                         }
                         DropdownMenuItem(onClick = {
                             menuExpanded = false
-                            navController.navigate("connectPrinter")
+                            navController.navigate("bluetoothScreen")
                         }) {
                             Text("Connect Printer")
                         }

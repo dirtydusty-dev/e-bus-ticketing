@@ -11,10 +11,16 @@ import com.sinarowa.e_bus_ticket.data.repository.TicketRepository
 import com.sinarowa.e_bus_ticket.data.repository.TripRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import javax.inject.Inject
 
 @HiltViewModel
@@ -38,10 +44,20 @@ class TicketViewModel @Inject constructor(
 
     fun updateTicketCount(tripId: String) {
         viewModelScope.launch {
-            val soldTickets = ticketRepository.getAllTickets().count { it.tripId == tripId }
-            _ticketCount.value = soldTickets
+            ticketRepository.getAllTickets()
+                .collect { tickets ->
+                    val soldTickets = tickets.count { it.tripId == tripId }
+                    _ticketCount.value = soldTickets
+                }
         }
     }
+
+    fun getTicketsByCity(): Flow<Map<String, List<Ticket>>> {
+        return ticketRepository.getAllTickets()
+            .map { tickets -> tickets.groupBy { it.fromStop } } // Group tickets by 'fromStop'
+    }
+
+
 
     fun insertTicket(ticket: Ticket) {
         viewModelScope.launch {
@@ -49,6 +65,39 @@ class TicketViewModel @Inject constructor(
             updateTicketCount(ticket.tripId)
         }
     }
+
+    fun getAllTickets(tripId: String): Flow<List<Ticket>> {
+        return ticketRepository.getTicketsByTrip(tripId)
+    }
+
+
+    /**
+     * ✅ when sync api is ready use this
+     */
+
+    /*fun insertTicket(ticket: Ticket, isOnline: Boolean) {
+        viewModelScope.launch {
+            ticketRepository.insertTicket(ticket)
+            updateTicketCount(ticket.tripId)
+            if (isOnline) {
+                val success = tryToSyncTicket(ticket)
+                if (!success) syncQueueRepository.addToQueue("TICKET", convertTicketToJson(ticket))
+            } else {
+                syncQueueRepository.addToQueue("TICKET", convertTicketToJson(ticket))
+            }
+        }
+    }
+
+    private suspend fun tryToSyncTicket(ticket: Ticket): Boolean {
+        return try {
+            val response = apiService.uploadTicket(ticket)
+            response.isSuccessful
+        } catch (e: Exception) {
+            false
+        }
+    }
+    */
+
 
 
     suspend fun cancelTicket(ticketId: String, cancelReason: String, activeTripId: String): Boolean {
@@ -66,13 +115,13 @@ class TicketViewModel @Inject constructor(
     /**
      * ✅ Get city name based on GPS coordinates
      */
-    suspend fun getCityFromCoordinates(latitude: Double, longitude: Double, tripId: String): String {
+/*    suspend fun getCityFromCoordinates(latitude: Double, longitude: Double, tripId: String): String {
         return withContext(Dispatchers.IO) {
             val tripDetails = tripRepository.getTripById(tripId)
             val routeId = tripDetails?.routeId ?: return@withContext "Unknown"
             getClosestCityForRoute(latitude, longitude, routeId)
         }
-    }
+    }*/
 
 /*
 
@@ -88,7 +137,7 @@ class TicketViewModel @Inject constructor(
         }?.cityName ?: "Unknown"
     }*/
 
-    private suspend fun getClosestCityForRoute(latitude: Double, longitude: Double, routeId: String): String {
+   /* private suspend fun getClosestCityForRoute(latitude: Double, longitude: Double, routeId: String): String {
         val route = routeRepository.getRouteById(routeId) ?: return "Unknown"
         val routeStops = route.stops.split(",").map { it.trim() }
 
@@ -107,7 +156,7 @@ class TicketViewModel @Inject constructor(
 
         return nearestLocation?.key?.cityName ?: "Unknown"
     }
-
+*/
 
     /**
      * ✅ Haversine Formula to calculate distance between two latitude/longitude points
@@ -131,7 +180,7 @@ class TicketViewModel @Inject constructor(
 
 
 
-    suspend fun getClosestCity(latitude: Double, longitude: Double): String {
+   /* suspend fun getClosestCity(latitude: Double, longitude: Double): String {
         return withContext(Dispatchers.IO) {
             val allLocations = locationRepository.getAllLocations()
 
@@ -143,9 +192,9 @@ class TicketViewModel @Inject constructor(
         }
     }
 
-    /**
+    *//**
      * ✅ Haversine Formula to Calculate Distance Between Two GPS Coordinates
-     */
+     *//*
     fun haversineDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val R = 6371 // Radius of Earth in km
         val dLat = Math.toRadians(lat2 - lat1)
@@ -156,7 +205,7 @@ class TicketViewModel @Inject constructor(
         val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
         return R * c
     }
-
+*/
 
 
     /**
@@ -170,6 +219,8 @@ class TicketViewModel @Inject constructor(
         }
     }
 
+
+
     /**
      * ✅ Get ticket price from price table
      */
@@ -179,10 +230,34 @@ class TicketViewModel @Inject constructor(
             when (ticketType) {
                 "Adult" -> priceEntity?.adultPrice ?: 0.0
                 "Child" -> priceEntity?.childPrice ?: 0.0
-                "Luggage" -> priceEntity?.luggagePrice ?: 0.0
+                "$1 Short" -> priceEntity?.dollarShort ?: 0.0
+                "$2 Short" -> priceEntity?.twoDollarShort ?: 0.0
                 else -> 0.0
             }
         }
     }
+
+
+
+
+    suspend fun getCityFromCoordinates(tripId: String): String {
+        return withContext(Dispatchers.IO) {
+            Log.d("LOCATION_PROCESS", "🔄 Fetching city from coordinates...")
+            val cityName = locationRepository.getCityNameWithFallback(tripId)
+
+            Log.d("LOCATION_PROCESS", "✅ Determined city: $cityName")
+
+            return@withContext cityName
+        }
+    }
+
+    suspend fun getStationSales(tripId: String): Map<String, Pair<Int, Double>> {
+        return ticketRepository.calculateStationSales(tripId)
+    }
+
+    suspend fun getTicketBreakdown(tripId: String): Map<Pair<String, String>, Pair<Int, Double>> {
+        return ticketRepository.calculateTicketBreakdown(tripId)
+    }
+
 
 }

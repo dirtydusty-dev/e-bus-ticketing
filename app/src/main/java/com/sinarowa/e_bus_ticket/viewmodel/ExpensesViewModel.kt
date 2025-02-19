@@ -33,6 +33,11 @@ class ExpensesViewModel @Inject constructor(
         }
     }
 
+    suspend fun getTotalExpenses(): Double {
+        return expenseRepository.getAllExpenses().sumOf { it.amount }
+    }
+
+
     fun clearExpenses() {
         viewModelScope.launch {
             expenseRepository.deleteAllExpenses()

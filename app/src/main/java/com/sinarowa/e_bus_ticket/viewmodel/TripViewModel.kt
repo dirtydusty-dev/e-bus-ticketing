@@ -8,18 +8,17 @@ import com.sinarowa.e_bus_ticket.data.local.dao.BusDao
 import com.sinarowa.e_bus_ticket.data.local.dao.TripDetailsDao
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
 import com.sinarowa.e_bus_ticket.data.local.entities.BusEntity
+import com.sinarowa.e_bus_ticket.data.local.entities.Expense
+import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
+import com.sinarowa.e_bus_ticket.data.repository.ExpenseRepository
+import com.sinarowa.e_bus_ticket.data.repository.TicketRepository
 import com.sinarowa.e_bus_ticket.data.repository.TripRepository
+import com.sinarowa.e_bus_ticket.utils.TimeUtils.getFormattedTimestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
 
@@ -28,7 +27,9 @@ class TripViewModel @Inject constructor(
     private val routeDao: RouteDao,
     private val busDao: BusDao,
     private val tripDao: TripDetailsDao,
-    private val tripRepository: TripRepository
+    private val tripRepository: TripRepository,
+    private val ticketRepository: TicketRepository,
+    private val expensesRepository: ExpenseRepository
 ) : ViewModel() {
 
     private val _routes = MutableStateFlow<List<RouteEntity>>(emptyList())
@@ -40,13 +41,11 @@ class TripViewModel @Inject constructor(
     private val _activeTrip = MutableStateFlow<TripDetails?>(null)
     val activeTrip = _activeTrip.asStateFlow()
 
-    // ✅ Trips now come from Room and update in real time
-    val trips: StateFlow<List<TripDetails>> = tripRepository.getAllTrips()
+    val trips: StateFlow<List<TripDetails>> = tripRepository.getAllActiveTrips()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     private val _selectedTrip = MutableStateFlow<TripDetails?>(null)
     val selectedTrip: StateFlow<TripDetails?> = _selectedTrip
-
 
     init {
         Log.d("TripViewModel", "Initializing ViewModel, loading routes and buses")
@@ -60,11 +59,14 @@ class TripViewModel @Inject constructor(
         }
     }
 
+    suspend fun endTrip(tripId: String) {
+        tripRepository.endTripById(tripId, 1, getFormattedTimestamp())
+    }
+
     fun loadRoutes() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val routesList = routeDao.getAllRoutes()
-                _routes.value = routesList
+                _routes.value = routeDao.getAllRoutes()
             } catch (e: Exception) {
                 Log.e("TripViewModel", "Error loading routes: ${e.message}")
             }
@@ -74,13 +76,90 @@ class TripViewModel @Inject constructor(
     fun loadBuses() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val busList = busDao.getAllBuses()
-                _buses.value = busList
+                _buses.value = busDao.getAllBuses()
             } catch (e: Exception) {
                 Log.e("TripViewModel", "Error loading buses: ${e.message}")
             }
         }
     }
+
+    private val _tripSales = MutableStateFlow<List<TripSale>>(emptyList())
+    val tripSales: StateFlow<List<TripSale>> = _tripSales
+
+    data class TripSale(
+        val tripId: String,
+        val routeName: String,
+        val totalTickets: Int,
+        val totalSales: Double,
+        val totalExpenses: Double,
+        val netSales: Double,
+        val routeBreakdown: List<RouteBreakdown>,
+        val expenseBreakdown: List<ExpenseBreakdown>
+    )
+
+    data class RouteBreakdown(
+        val fromCity: String,
+        val toCity: String,
+        val ticketBreakdown: List<TicketBreakdown>
+    )
+
+    data class TicketBreakdown(
+        val type: String,
+        val count: Int,
+        val amount: Double
+    )
+
+    data class ExpenseBreakdown(
+        val type: String,
+        val count: Int,
+        val totalAmount: Double
+    )
+
+    /**
+     * ✅ **Fetch Sales & Expense Breakdown**
+     */
+    fun fetchTripSales() {
+        viewModelScope.launch {
+            tripRepository.getAllTrips().collect { trips ->
+                val sales = trips.map { trip ->
+                    val tickets = ticketRepository.getTicketsByTrip(trip.tripId).first()
+                    val expenses = expensesRepository.getExpensesByTrip(trip.tripId).first()
+
+                    // Group tickets by (from -> to)
+                    val routeBreakdown = tickets.groupBy { it.fromStop to it.toStop }
+                        .map { (route, tripTickets) ->
+                            RouteBreakdown(
+                                fromCity = route.first,
+                                toCity = route.second,
+                                ticketBreakdown = tripTickets.groupBy { it.ticketType }
+                                    .map { (type, tickets) ->
+                                        TicketBreakdown(type, tickets.size, tickets.sumOf { it.price })
+                                    }
+                            )
+                        }
+
+                    // ✅ Group expenses by type
+                    val expenseBreakdown = expenses.groupBy { it.type }
+                        .map { (type, expenseList) ->
+                            ExpenseBreakdown(type, expenseList.size, expenseList.sumOf { it.amount })
+                        }
+
+                    TripSale(
+                        tripId = trip.tripId,
+                        routeName = trip.routeName,
+                        totalTickets = tickets.size,
+                        totalSales = tickets.sumOf { it.price },
+                        totalExpenses = expenses.sumOf { it.amount },
+                        netSales = tickets.sumOf { it.price } - expenses.sumOf { it.amount },
+                        routeBreakdown = routeBreakdown,
+                        expenseBreakdown = expenseBreakdown
+                    )
+                }
+                _tripSales.value = sales
+            }
+        }
+    }
+
 
     fun createTrip(route: RouteEntity, bus: BusEntity) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -92,7 +171,6 @@ class TripViewModel @Inject constructor(
                         tripId = UUID.randomUUID().toString(),
                         routeId = route.routeId,
                         routeName = route.name,
-                        date = System.currentTimeMillis(),
                         busId = bus.busId,
                         busName = bus.busName
                     )
