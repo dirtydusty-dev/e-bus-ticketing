@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.sinarowa.e_bus_ticket.data.local.entities.Expense
 import com.sinarowa.e_bus_ticket.data.repository.ExpenseRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,7 +29,7 @@ class ExpensesViewModel @Inject constructor(
     }
 
     fun insertExpense(expense: Expense) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {  // ✅ Ensure it's done on IO thread
             expenseRepository.insertExpense(expense)
         }
     }

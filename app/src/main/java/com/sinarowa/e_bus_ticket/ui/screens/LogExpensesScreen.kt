@@ -29,34 +29,38 @@ fun LogExpensesScreen(
     expensesViewModel: ExpensesViewModel = viewModel(),
     ticketViewModel: TicketViewModel = viewModel()
 ) {
-    val expenseTypes = listOf("Fuel","Inspector Allowance","Driver Allowance","Conductor Allowance","Advantages", "Toll Gate", "Meals", "Police Ticket", "Rank Fees", "Vouchers", "Other")
+    val scaffoldState = rememberScaffoldState()
+    val coroutineScope = rememberCoroutineScope()
+
+    val expenseTypes = listOf(
+        "Fuel", "Inspector Allowance", "Driver Allowance", "Conductor Allowance",
+        "Advantages", "Toll Gate", "Meals", "Police Ticket", "Rank Fees", "Vouchers", "Other"
+    )
+
     var selectedExpense by remember { mutableStateOf(expenseTypes.first()) }
     var description by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
-    var showConfirmation by remember { mutableStateOf(false) }
     var amountError by remember { mutableStateOf(false) }
-    var expenseTypeError by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    var isProcessing by remember { mutableStateOf(false) } // ✅ Track button loading
 
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val fromCity = remember { mutableStateOf("Detecting...") }
 
-    var formStateKey by remember { mutableStateOf(0) }
-
-    key(formStateKey) {
-        val fromCity = remember { mutableStateOf("Detecting...") }
-
-        // Fetch city from GPS
-        LaunchedEffect(Unit) {
+    // ✅ Fetch city from GPS
+    LaunchedEffect(tripId) {
+        if (fromCity.value == "Detecting...") { // ✅ Prevent multiple calls
             coroutineScope.launch {
                 fromCity.value = ticketViewModel.getCityFromCoordinates(tripId)
             }
         }
+    }
 
+
+    Scaffold(
+        scaffoldState = scaffoldState
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -64,27 +68,17 @@ fun LogExpensesScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // 🔹 Expense Type Dropdown
-            DropdownMenuComponent(
-                label = "Select Expense Type",
-                items = expenseTypes,
-                selectedItem = selectedExpense,
-                onSelectionChanged = { selectedExpense = it }
-            )
-            if (expenseTypeError) {
-                Text("Please select an expense type.", color = Color.Red, fontSize = 12.sp)
+            DropdownMenuComponent("Select Expense Type", expenseTypes, selectedExpense) { newSelection ->
+                selectedExpense = newSelection
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 🔹 Description Field
+            // 🔹 Description Field (Optional)
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
                 label = { Text("Description (Optional)") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = Color(0xFF1565C0),
-                    unfocusedBorderColor = Color.Gray
-                )
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -93,78 +87,60 @@ fun LogExpensesScreen(
                 value = amount,
                 onValueChange = {
                     amount = it
-                    amountError = it.isBlank() || it.toDoubleOrNull() == null || it.toDouble() <= 0.0
+                    amountError = it.toDoubleOrNull()?.let { it <= 0.0 } ?: true
                 },
                 label = { Text("Amount (USD)") },
                 modifier = Modifier.fillMaxWidth(),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = Color(0xFF1565C0),
-                    unfocusedBorderColor = Color.Gray
-                )
+                isError = amountError
             )
             if (amountError) {
-                Text("Please enter a valid amount.", color = Color.Red, fontSize = 12.sp)
+                Text("Invalid amount. Enter a number greater than 0.", color = Color.Red, style = MaterialTheme.typography.body2)
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 🔹 Save Expense Button
+            // ✅ Save Expense Button
+            val isButtonEnabled = !isProcessing && amount.isNotEmpty() && !amountError
+
             Button(
                 onClick = {
-                    // **Validation before logging**
-                    expenseTypeError = selectedExpense.isBlank()
-                    amountError = amount.isBlank() || amount.toDoubleOrNull() == null || amount.toDouble() <= 0.0
+                    isProcessing = true // ✅ Disable button immediately
 
-                    if (!amountError && !expenseTypeError) {
-                        scope.launch {
-                            val newExpense = Expense(
-                                expenseId = UUID.randomUUID().toString(),
-                                tripId = tripId,
-                                type = selectedExpense,
-                                amount = amount.toDouble(),
-                                description = description,
-                                location = fromCity.value
-                            )
-                            expensesViewModel.insertExpense(newExpense)
-                            showConfirmation = true
+                    coroutineScope.launch {
+                        val newExpense = Expense(
+                            expenseId = UUID.randomUUID().toString(),
+                            tripId = tripId,
+                            type = selectedExpense,
+                            amount = amount.toDouble(),
+                            description = description,
+                            location = fromCity.value
+                        )
+                        expensesViewModel.insertExpense(newExpense)
 
-                            // 🔄 Reset form
-                            amount = ""
-                            description = ""
-                            selectedExpense = expenseTypes.first()
+                        // ✅ Show success message using Snackbar
+                        scaffoldState.snackbarHostState.showSnackbar("Expense logged successfully!")
 
-                            delay(1500) // ✅ Show confirmation for 1.5 seconds
-                            navController.popBackStack()
-                        }
+                        // 🔄 Reset fields properly
+                        selectedExpense = expenseTypes.first()
+                        description = ""
+                        amount = ""
+                        isProcessing = false // ✅ Re-enable button after success
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFFFEB3B)),
-                shape = RoundedCornerShape(12.dp)
+                colors = ButtonDefaults.buttonColors(backgroundColor = if (isButtonEnabled) Color(0xFFFFEB3B) else Color.Gray),
+                shape = RoundedCornerShape(8.dp),
+                enabled = isButtonEnabled
             ) {
-                Icon(Icons.Filled.AttachMoney, contentDescription = "Save", tint = Color.Black)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Save Expense", color = Color.Black, fontSize = 18.sp)
-            }
-        }
-
-        // 🔹 Confirmation Dialog
-        if (showConfirmation) {
-            AlertDialog(
-                onDismissRequest = { showConfirmation = false },
-                title = { Text("Success", color = Color(0xFF1565C0), fontSize = 20.sp) },
-                text = { Text("Expense successfully logged.") },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showConfirmation = false
-                            navController.popBackStack()
-                        },
-                        colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFF1565C0))
-                    ) {
-                        Text("OK", color = Color.White)
-                    }
+                if (isProcessing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.Black
+                    )
+                } else {
+                    Text("Save Expense", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
-            )
+            }
         }
     }
 }
+

@@ -1,67 +1,156 @@
 package com.sinarowa.e_bus_ticket.utils
 
+import android.content.ContentValues
 import android.content.Context
-import android.graphics.pdf.PdfDocument
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import com.itextpdf.kernel.pdf.PdfDocument
 import android.os.Environment
+import android.provider.MediaStore
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
-import java.io.File
-import java.io.FileOutputStream
-import android.util.Log
-import com.lowagie.text.*
-import com.lowagie.text.pdf.*
-import java.io.IOException
-import androidx.compose.ui.text.font.FontFamily
 
+import android.util.Log
+import com.itextpdf.io.image.ImageDataFactory
+import com.itextpdf.io.source.ByteArrayOutputStream
+import com.itextpdf.kernel.pdf.PdfWriter
+import com.itextpdf.layout.element.Paragraph
+import com.itextpdf.layout.Document
+import com.itextpdf.layout.element.Image
+import com.itextpdf.layout.element.Table
+import com.sinarowa.e_bus_ticket.R
 
 
 object PdfUtils {
-    fun generateTripSalesPdf(context: Context, sales: List<TripViewModel.TripSale>) {
-        val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(300, 600, 1).create()
-        val page = pdfDocument.startPage(pageInfo)
-        val canvas = page.canvas
-        val paint = android.graphics.Paint()
 
-        var yPosition = 20f
 
-        sales.forEach { sale ->
-            canvas.drawText("Route: ${sale.routeName}", 10f, yPosition, paint)
-            yPosition += 20
-            canvas.drawText("Total Tickets Sold: ${sale.totalTickets}", 10f, yPosition, paint)
-            yPosition += 20
-            canvas.drawText("Total Sales: \$${sale.totalSales}", 10f, yPosition, paint)
-            yPosition += 20
-            canvas.drawText("Total Expenses: \$${sale.totalExpenses}", 10f, yPosition, paint)
-            yPosition += 20
-            canvas.drawText("Net Sales: \$${sale.netSales}", 10f, yPosition, paint)
-            yPosition += 30
 
-            // Route Breakdown
-            sale.routeBreakdown.forEach { route ->
-                canvas.drawText("From: ${route.fromCity} To: ${route.toCity}", 10f, yPosition, paint)
-                yPosition += 20
-                route.ticketBreakdown.forEach { ticket ->
-                    canvas.drawText("  - ${ticket.type}: ${ticket.count} tickets (\$${ticket.amount})", 20f, yPosition, paint)
-                    yPosition += 20
+    fun generateTripSalesPdf(context: Context,
+                             sales: List<TripViewModel.TripSale>,
+                             companyName: String,
+                             companyContact: String,
+                             conductorName: String,
+                             tripStartTime: String,
+                             tripDate: String,
+                             busReg: String,   // ✅ Bus Registration
+                             busName: String )  // ✅ Bus Name
+    {
+        try {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "Trip_Sales_Report.pdf")
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+
+            val contentResolver = context.contentResolver
+            val uri = contentResolver.insert(MediaStore.Files.getContentUri("external"), contentValues)
+
+            if (uri != null) {
+                contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    val pdfWriter = PdfWriter(outputStream)
+                    val pdfDocument = PdfDocument(pdfWriter)
+                    val document = Document(pdfDocument)
+
+                    val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.logo)
+                    val byteArrayOutputStream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream)
+                    val imageData = ImageDataFactory.create(byteArrayOutputStream.toByteArray())
+                    val image = Image(imageData).scaleToFit(100f, 100f)
+
+
+
+                    document.add(Paragraph(companyName).setBold().setFontSize(20f))
+                    document.add(Paragraph("Contact: $companyContact").setFontSize(12f))
+                    document.add(Paragraph("\nTrip Sales Report").setBold().setFontSize(18f))
+
+// ✅ Add Bus Information
+                    document.add(Paragraph("Bus Name: $busName"))
+                    document.add(Paragraph("Bus Registration: $busReg"))
+
+// ✅ Add Trip Information
+                    document.add(Paragraph("Trip Date: $tripDate"))
+                    document.add(Paragraph("Conductor: $conductorName"))
+                    document.add(Paragraph("Start Time: $tripStartTime"))
+                    document.add(Paragraph("Report Generated: ${java.time.LocalDateTime.now()}"))
+
+                    document.add(Paragraph("\n--------------------------------------------------------\n"))
+
+
+
+                    // ✅ Title
+                    document.add(Paragraph("Trip Sales Report").setBold().setFontSize(18f))
+                    document.add(Paragraph("\n"))
+
+                    // ✅ Sales Summary Table
+                    val summaryTable = Table(floatArrayOf(2f, 1f, 1f, 1f, 1f))
+                    summaryTable.addCell("Route")
+                    summaryTable.addCell("Tickets Sold")
+                    summaryTable.addCell("Total Sales ($)")
+                    summaryTable.addCell("Total Expenses ($)")
+                    summaryTable.addCell("Net Sales ($)")
+
+                    sales.forEach { sale ->
+                        summaryTable.addCell(sale.routeName)
+                        summaryTable.addCell(sale.totalTickets.toString())
+                        summaryTable.addCell(String.format("%.2f", sale.totalSales))
+                        summaryTable.addCell(String.format("%.2f", sale.totalExpenses))
+                        summaryTable.addCell(String.format("%.2f", sale.netSales))
+                    }
+                    document.add(summaryTable)
+
+                    document.add(Paragraph("\n"))
+
+                    // ✅ Route Breakdown
+                    sales.forEach { sale ->
+                        document.add(Paragraph("Route Breakdown: ${sale.routeName}").setBold())
+
+                        val routeTable = Table(floatArrayOf(2f, 2f, 1f, 1f))
+                        routeTable.addCell("From")
+                        routeTable.addCell("To")
+                        routeTable.addCell("Tickets Sold")
+                        routeTable.addCell("Amount ($)")
+
+                        sale.routeBreakdown.forEach { route ->
+                            routeTable.addCell(route.fromCity)
+                            routeTable.addCell(route.toCity)
+                            route.ticketBreakdown.forEach { ticket ->
+                                routeTable.addCell(ticket.type)
+                                routeTable.addCell(ticket.count.toString())
+                                routeTable.addCell(String.format("%.2f", ticket.amount))
+                            }
+                        }
+                        document.add(routeTable)
+                        document.add(Paragraph("\n"))
+                    }
+
+                    // ✅ Expense Breakdown
+                    document.add(Paragraph("Expense Breakdown").setBold())
+
+                    val expenseTable = Table(floatArrayOf(2f, 1f, 1f))
+                    expenseTable.addCell("Expense Type")
+                    expenseTable.addCell("Count")
+                    expenseTable.addCell("Total Amount ($)")
+
+                    sales.forEach { sale ->
+                        sale.expenseBreakdown.forEach { expense ->
+                            expenseTable.addCell(expense.type)
+                            expenseTable.addCell(expense.count.toString())
+                            expenseTable.addCell(String.format("%.2f", expense.totalAmount))
+                        }
+                    }
+                    document.add(expenseTable)
+
+                    // ✅ Close document
+                    document.close()
+                    Log.d("PDF_GENERATION", "✅ PDF saved at: ${uri.path}")
                 }
+            } else {
+                Log.e("PDF_GENERATION", "❌ Failed to create PDF in Downloads")
             }
-            yPosition += 30
-
-            // Expense Breakdown
-            canvas.drawText("Expense Breakdown:", 10f, yPosition, paint)
-            yPosition += 20
-            sale.expenseBreakdown.forEach { expense ->
-                canvas.drawText("  - ${expense.type}: ${expense.count} entries (\$${expense.totalAmount})", 20f, yPosition, paint)
-                yPosition += 20
-            }
-            yPosition += 40
+        } catch (e: Exception) {
+            Log.e("PDF_GENERATION", "❌ Error generating PDF: ${e.message}")
         }
-
-        pdfDocument.finishPage(page)
-        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "TripSalesReport.pdf")
-        pdfDocument.writeTo(FileOutputStream(file))
-        pdfDocument.close()
     }
+
 
     fun generateTicketSalesPdf(
         context: Context,
@@ -69,59 +158,63 @@ object PdfUtils {
         breakdown: Map<Pair<String, String>, Pair<Int, Double>>
     ) {
         try {
-            val pdfFile = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "Ticket_Sales_Report.pdf"
-            )
-
-            val document = Document()
-            PdfWriter.getInstance(document, FileOutputStream(pdfFile))
-            document.open()
-
-            // ✅ Title
-            val titleFont = Font(Font.HELVETICA, 18f, Font.BOLD)
-            document.add(Paragraph("Ticket Sales Report", titleFont))
-            document.add(Paragraph("\n"))
-
-            // ✅ Station Sales Table
-            val stationTable = PdfPTable(3) // 3 Columns: Station, Count, Amount
-            stationTable.addCell("Station")
-            stationTable.addCell("Count")
-            stationTable.addCell("Amount ($)")
-
-            stationSales.forEach { (station, data) ->
-                stationTable.addCell(station)
-                stationTable.addCell(data.first.toString())
-                stationTable.addCell(String.format("%.2f", data.second))
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "Ticket_Sales_Report.pdf")
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
 
-            document.add(Paragraph("Station Sales Summary", titleFont))
-            document.add(stationTable)
-            document.add(Paragraph("\n"))
+            val contentResolver = context.contentResolver
+            val uri = contentResolver.insert(MediaStore.Files.getContentUri("external"), contentValues)
 
-            // ✅ Breakdown Table
-            val breakdownTable = PdfPTable(4) // 4 Columns: Start, Destination, Count, Amount
-            breakdownTable.addCell("Start")
-            breakdownTable.addCell("Destination")
-            breakdownTable.addCell("Count")
-            breakdownTable.addCell("Amount ($)")
+            if (uri != null) {
+                contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    val writer = PdfWriter(outputStream)
+                    val pdf = PdfDocument(writer)
+                    val document = Document(pdf)
 
-            breakdown.forEach { (route, data) ->
-                breakdownTable.addCell(route.first)
-                breakdownTable.addCell(route.second)
-                breakdownTable.addCell(data.first.toString())
-                breakdownTable.addCell(String.format("%.2f", data.second))
+                    // Title
+                    document.add(Paragraph("Ticket Sales Report").setBold().setFontSize(18f))
+
+                    // Station Sales Table
+                    val stationTable = Table(floatArrayOf(2f, 1f, 1f))
+                    stationTable.addCell("Station")
+                    stationTable.addCell("Count")
+                    stationTable.addCell("Amount ($)")
+
+                    stationSales.forEach { (station, data) ->
+                        stationTable.addCell(station)
+                        stationTable.addCell(data.first.toString())
+                        stationTable.addCell(String.format("%.2f", data.second))
+                    }
+                    document.add(stationTable)
+
+                    // Breakdown Table
+                    document.add(Paragraph("\nBreakdown").setBold())
+                    val breakdownTable = Table(floatArrayOf(2f, 2f, 1f, 1f))
+                    breakdownTable.addCell("Start")
+                    breakdownTable.addCell("Destination")
+                    breakdownTable.addCell("Count")
+                    breakdownTable.addCell("Amount ($)")
+
+                    breakdown.forEach { (route, data) ->
+                        breakdownTable.addCell(route.first)
+                        breakdownTable.addCell(route.second)
+                        breakdownTable.addCell(data.first.toString())
+                        breakdownTable.addCell(String.format("%.2f", data.second))
+                    }
+                    document.add(breakdownTable)
+
+                    document.close()
+                    Log.d("PDF_GENERATION", "✅ PDF saved at: ${uri.path}")
+                }
+            } else {
+                Log.e("PDF_GENERATION", "❌ Failed to create PDF in Downloads")
             }
-
-            document.add(Paragraph("Breakdown", titleFont))
-            document.add(breakdownTable)
-
-            document.close()
-
-            Log.d("PDF_GENERATION", "✅ PDF saved at: ${pdfFile.absolutePath}")
-
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             Log.e("PDF_GENERATION", "❌ Error generating PDF: ${e.message}")
         }
     }
+
+
 }

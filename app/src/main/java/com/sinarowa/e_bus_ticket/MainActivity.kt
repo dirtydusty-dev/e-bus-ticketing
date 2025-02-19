@@ -144,12 +144,22 @@ class MainActivity : ComponentActivity() {
 
     /** ✅ Request foreground location permissions */
     private fun requestLocationPermissions() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+            // ✅ Show an explanation & request permission
+            Toast.makeText(this, "Location permission is needed for tracking.", Toast.LENGTH_LONG).show()
+        }
+
         ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, REQUEST_LOCATION_PERMISSION)
     }
 
     /** ✅ Request background location permission */
     private fun requestBackgroundLocationPermission() {
-        ActivityCompat.requestPermissions(this, BACKGROUND_LOCATION_PERMISSION, REQUEST_BACKGROUND_LOCATION_PERMISSION)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+                Toast.makeText(this, "Background location permission is required for tracking.", Toast.LENGTH_LONG).show()
+            }
+            ActivityCompat.requestPermissions(this, BACKGROUND_LOCATION_PERMISSION, REQUEST_BACKGROUND_LOCATION_PERMISSION)
+        }
     }
 
     /** ✅ Check if Bluetooth permissions are granted */
@@ -170,33 +180,49 @@ class MainActivity : ComponentActivity() {
     /** ✅ Handle permission request results */
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
         when (requestCode) {
             REQUEST_LOCATION_PERMISSION -> {
                 if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                     locationViewModel.startLocationTracking()
                 } else {
-                    Toast.makeText(this, "Location permission denied. Enable it in settings.", Toast.LENGTH_LONG).show()
-                    openAppSettings()
+                    // ✅ If user denies twice, redirect to settings
+                    if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
+                        showSettingsRedirectDialog("Location permission is required to track your trips.")
+                    }
                 }
             }
+
             REQUEST_BACKGROUND_LOCATION_PERMISSION -> {
                 if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                     Log.d("MainActivity", "✅ Background location permission granted")
                 } else {
-                    Toast.makeText(this, "Background location permission required for tracking.", Toast.LENGTH_LONG).show()
-                    openAppSettings()
+                    if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+                        showSettingsRedirectDialog("Background location permission is required for trip tracking.")
+                    }
                 }
             }
-            REQUEST_BLUETOOTH_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                    Log.d("MainActivity", "✅ Bluetooth permissions granted")
-                } else {
-                    Toast.makeText(this, "Bluetooth permission denied. Enable it in settings.", Toast.LENGTH_LONG).show()
-                    openAppSettings()
-                }
-            }
+
         }
     }
+
+    private fun showSettingsRedirectDialog(message: String) {
+        val builder = android.app.AlertDialog.Builder(this)
+        builder.setTitle("Permission Required")
+            .setMessage("$message\n\nPlease enable it in App Settings.")
+            .setPositiveButton("Go to Settings") { _, _ ->
+                val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", packageName, null)
+                }
+                startActivity(intent)
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+
 
     /** ✅ Open App Settings if permissions are denied */
     private fun openAppSettings() {

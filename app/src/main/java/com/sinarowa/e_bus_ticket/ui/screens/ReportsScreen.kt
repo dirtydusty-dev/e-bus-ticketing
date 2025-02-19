@@ -28,7 +28,7 @@ fun ReportsScreen(tripId: String,tripViewModel: TripViewModel,ticketViewModel: T
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         DropdownMenuComponent(
             label = "Select Report",
-            items = listOf("Tickets", "Trip Sales", "Expenses"),
+            items = listOf("Tickets", "Trip Sales"),
             selectedItem = selectedReport
         ) { newSelection ->
             selectedReport = newSelection

@@ -55,12 +55,12 @@ fun HomeScreen(tripViewModel: TripViewModel, navController: NavController) {
                         onDismissRequest = { menuExpanded = false },
                         modifier = Modifier.background(Color.White)
                     ) {
-                        DropdownMenuItem(onClick = {
+                        /*DropdownMenuItem(onClick = {
                             menuExpanded = false
                             navController.navigate("tripHistory")
                         }) {
                             Text("Trip History")
-                        }
+                        }*/
                         DropdownMenuItem(onClick = {
                             menuExpanded = false
                             navController.navigate("bluetoothScreen")

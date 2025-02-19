@@ -19,8 +19,8 @@ fun LuggageTicketingScreen(
     tripId: String,
     ticketViewModel: TicketViewModel = viewModel(),
 ) {
-    val coroutineScope = rememberCoroutineScope()
     val scaffoldState = rememberScaffoldState()
+    val coroutineScope = rememberCoroutineScope()
 
     val fromCity = remember { mutableStateOf("Detecting...") }
     val routeStops by ticketViewModel.routeStops.collectAsState()
@@ -31,13 +31,17 @@ fun LuggageTicketingScreen(
     var luggageDescription by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var priceError by remember { mutableStateOf(false) }
+    var isProcessing by remember { mutableStateOf(false) } // ✅ Track button loading
 
     // ✅ Detect user's city
-    LaunchedEffect(Unit) {
-        coroutineScope.launch {
-            fromCity.value = ticketViewModel.getCityFromCoordinates(tripId)
+    LaunchedEffect(tripId) {
+        if (fromCity.value == "Detecting...") { // ✅ Prevent multiple calls
+            coroutineScope.launch {
+                fromCity.value = ticketViewModel.getCityFromCoordinates(tripId)
+            }
         }
     }
+
 
     // ✅ Filter stops: Exclude `fromCity`
     val validStops = remember(allStops, fromCity.value) {
@@ -48,7 +52,9 @@ fun LuggageTicketingScreen(
         scaffoldState = scaffoldState
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("Luggage Ticketing", style = MaterialTheme.typography.h5, color = Color(0xFF1565C0))
@@ -68,7 +74,6 @@ fun LuggageTicketingScreen(
             DropdownMenuComponent("Select Destination", validStops, destination) { newSelection ->
                 destination = newSelection
             }
-
             Spacer(modifier = Modifier.height(8.dp))
 
             // 🏋🏽 Luggage Weight/Description (Optional)
@@ -96,11 +101,13 @@ fun LuggageTicketingScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ✅ Sell Luggage Ticket Button
-            val isButtonEnabled = destination.isNotEmpty() && !priceError && price.isNotEmpty()
+            // ✅ Issue Luggage Ticket Button
+            val isButtonEnabled = destination.isNotEmpty() && !priceError && price.isNotEmpty() && !isProcessing
 
             Button(
                 onClick = {
+                    isProcessing = true // ✅ Disable button immediately
+
                     coroutineScope.launch {
                         val newTicket = com.sinarowa.e_bus_ticket.data.local.entities.Ticket(
                             ticketId = System.currentTimeMillis().toString(),
@@ -116,10 +123,11 @@ fun LuggageTicketingScreen(
                         // ✅ Show success message
                         scaffoldState.snackbarHostState.showSnackbar("Luggage ticket issued successfully!")
 
-                        // 🔄 Reset fields
+                        // 🔄 Reset fields properly
                         destination = ""
                         luggageDescription = ""
                         price = ""
+                        isProcessing = false // ✅ Re-enable button after success
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -127,7 +135,14 @@ fun LuggageTicketingScreen(
                 shape = RoundedCornerShape(8.dp),
                 enabled = isButtonEnabled
             ) {
-                Text("Issue Luggage Ticket", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                if (isProcessing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.Black
+                    )
+                } else {
+                    Text("Issue Luggage Ticket", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                }
             }
         }
     }

@@ -46,7 +46,18 @@ fun TripSalesScreen(tripSales: List<TripViewModel.TripSale>, context: Context) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        Button(onClick = { PdfUtils.generateTripSalesPdf(context, tripSales) }) {
+        Button(onClick = { PdfUtils.generateTripSalesPdf(
+            context,
+            tripSales,
+            companyName = "Govasburg Bus Company",
+            companyContact = "+263 712 345 678 ",
+            conductorName = "John Doe",
+            tripStartTime = "06:30 AM",
+            tripDate = "19 Feb 2025",
+            busReg = "ZIM 1234",
+            busName = "Blue Express"
+        )
+        }) {
             Text("Print Report")
         }
     }
