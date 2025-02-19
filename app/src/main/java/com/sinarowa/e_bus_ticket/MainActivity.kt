@@ -22,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
 import dagger.hilt.android.AndroidEntryPoint
 import com.sinarowa.e_bus_ticket.ui.screens.*
 import com.sinarowa.e_bus_ticket.ui.viewmodel.LocationViewModel
@@ -82,11 +83,16 @@ class MainActivity : ComponentActivity() {
             val tripViewModel: TripViewModel = hiltViewModel()
             val ticketViewModel: TicketViewModel = hiltViewModel()
             val expensesViewModel: ExpensesViewModel = hiltViewModel()
+            val bluetoothHelper by lazy { BluetoothPrinterHelper(this) }
 
             NavHost(navController, startDestination = "home") {
                 composable("home") { HomeScreen(tripViewModel, navController) }
                 composable("salesreports") { TripSalesScreen(tripViewModel.tripSales.collectAsState().value, this@MainActivity) }
                 composable("createTrip") { CreateTripScreen(tripViewModel, navController) }
+
+                composable("bluetoothScreen") {
+                    BluetoothDevicesScreen(bluetoothHelper, this@MainActivity) // ✅ Pass Bluetooth Helper & Activity
+                }
 
                 composable("reports/{tripId}") { backStackEntry ->
                     val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
@@ -136,11 +142,13 @@ class MainActivity : ComponentActivity() {
     /** ✅ Check if background location permission is granted (Android 10+) */
     private fun hasBackgroundLocationPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+            hasLocationPermissions() && // ✅ Ensure foreground location is granted first!
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
         } else {
             true
         }
     }
+
 
     /** ✅ Request foreground location permissions */
     private fun requestLocationPermissions() {
@@ -155,12 +163,15 @@ class MainActivity : ComponentActivity() {
     /** ✅ Request background location permission */
     private fun requestBackgroundLocationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-                Toast.makeText(this, "Background location permission is required for tracking.", Toast.LENGTH_LONG).show()
-            }
-            ActivityCompat.requestPermissions(this, BACKGROUND_LOCATION_PERMISSION, REQUEST_BACKGROUND_LOCATION_PERMISSION)
+            // ✅ Delay the request slightly to avoid triggering immediately
+            window.decorView.postDelayed({
+                if (!hasBackgroundLocationPermission()) {
+                    ActivityCompat.requestPermissions(this, BACKGROUND_LOCATION_PERMISSION, REQUEST_BACKGROUND_LOCATION_PERMISSION)
+                }
+            }, 2000) // ✅ 2 seconds delay
         }
     }
+
 
     /** ✅ Check if Bluetooth permissions are granted */
     private fun hasBluetoothPermissions(): Boolean {
@@ -185,8 +196,13 @@ class MainActivity : ComponentActivity() {
             REQUEST_LOCATION_PERMISSION -> {
                 if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                     locationViewModel.startLocationTracking()
+
+                    // ✅ Now, request background location **AFTER** foreground location is granted!
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasBackgroundLocationPermission()) {
+                        requestBackgroundLocationPermission()
+                    }
                 } else {
-                    // ✅ If user denies twice, redirect to settings
+                    // ✅ Redirect to settings only if the user denied twice
                     if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
                         showSettingsRedirectDialog("Location permission is required to track your trips.")
                     }
@@ -197,14 +213,15 @@ class MainActivity : ComponentActivity() {
                 if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                     Log.d("MainActivity", "✅ Background location permission granted")
                 } else {
+                    // ✅ Redirect to settings **only if the user denied twice**
                     if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
                         showSettingsRedirectDialog("Background location permission is required for trip tracking.")
                     }
                 }
             }
-
         }
     }
+
 
     private fun showSettingsRedirectDialog(message: String) {
         val builder = android.app.AlertDialog.Builder(this)

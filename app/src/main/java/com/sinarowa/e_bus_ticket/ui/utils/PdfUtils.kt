@@ -101,26 +101,19 @@ object PdfUtils {
 
                     // ✅ Route Breakdown
                     sales.forEach { sale ->
-                        document.add(Paragraph("Route Breakdown: ${sale.routeName}").setBold())
-
-                        val routeTable = Table(floatArrayOf(2f, 2f, 1f, 1f))
-                        routeTable.addCell("From")
-                        routeTable.addCell("To")
-                        routeTable.addCell("Tickets Sold")
-                        routeTable.addCell("Amount ($)")
-
                         sale.routeBreakdown.forEach { route ->
-                            routeTable.addCell(route.fromCity)
-                            routeTable.addCell(route.toCity)
+                            // ✅ Add Route Header
+                            document.add(Paragraph("From: ${route.fromCity} To: ${route.toCity}").setBold())
+
+                            // ✅ Add Ticket Breakdown
                             route.ticketBreakdown.forEach { ticket ->
-                                routeTable.addCell(ticket.type)
-                                routeTable.addCell(ticket.count.toString())
-                                routeTable.addCell(String.format("%.2f", ticket.amount))
+                                document.add(Paragraph("  - ${ticket.type}: ${ticket.count} ticket(s) ($${String.format("%.1f", ticket.amount)})"))
                             }
+
+                            document.add(Paragraph("\n")) // ✅ Space between routes
                         }
-                        document.add(routeTable)
-                        document.add(Paragraph("\n"))
                     }
+
 
                     // ✅ Expense Breakdown
                     document.add(Paragraph("Expense Breakdown").setBold())

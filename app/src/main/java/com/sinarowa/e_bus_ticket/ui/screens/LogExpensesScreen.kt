@@ -42,6 +42,7 @@ fun LogExpensesScreen(
     var amount by remember { mutableStateOf("") }
     var amountError by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) } // ✅ Track button loading
+    var showSnackbar by remember { mutableStateOf(false) }
 
     val fromCity = remember { mutableStateOf("Detecting...") }
 
@@ -54,13 +55,23 @@ fun LogExpensesScreen(
         }
     }
 
-
     Scaffold(
-        scaffoldState = scaffoldState
-    ) {
+        scaffoldState = scaffoldState,
+        topBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp), // ✅ Moves Snackbar down slightly from the absolute top
+                contentAlignment = Alignment.TopCenter
+            ) {
+                SnackbarHost(scaffoldState.snackbarHostState)
+            }
+        }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(paddingValues)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -103,8 +114,7 @@ fun LogExpensesScreen(
 
             Button(
                 onClick = {
-                    isProcessing = true // ✅ Disable button immediately
-
+                    isProcessing = true // ✅ Show loading indicator
                     coroutineScope.launch {
                         val newExpense = Expense(
                             expenseId = UUID.randomUUID().toString(),
@@ -116,25 +126,26 @@ fun LogExpensesScreen(
                         )
                         expensesViewModel.insertExpense(newExpense)
 
-                        // ✅ Show success message using Snackbar
-                        scaffoldState.snackbarHostState.showSnackbar("Expense logged successfully!")
-
                         // 🔄 Reset fields properly
                         selectedExpense = expenseTypes.first()
                         description = ""
                         amount = ""
                         isProcessing = false // ✅ Re-enable button after success
+                        showSnackbar = true  // ✅ Show Snackbar
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                enabled = isButtonEnabled, // ✅ Disable while processing
+                modifier = Modifier.fillMaxWidth().height(50.dp), // ✅ Set button height
                 colors = ButtonDefaults.buttonColors(backgroundColor = if (isButtonEnabled) Color(0xFFFFEB3B) else Color.Gray),
-                shape = RoundedCornerShape(8.dp),
-                enabled = isButtonEnabled
+                shape = RoundedCornerShape(8.dp)
             ) {
                 if (isProcessing) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.Black
+                        modifier = Modifier
+                            .size(24.dp) // ✅ Ensure proper size
+                            .padding(4.dp),
+                        color = Color.Black,
+                        strokeWidth = 2.dp
                     )
                 } else {
                     Text("Save Expense", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
@@ -142,5 +153,14 @@ fun LogExpensesScreen(
             }
         }
     }
-}
 
+    // ✅ Show Snackbar properly
+    LaunchedEffect(showSnackbar) {
+        if (showSnackbar) {
+            coroutineScope.launch {
+                scaffoldState.snackbarHostState.showSnackbar("Expense logged successfully!") // ✅ Display success message
+            }
+            showSnackbar = false // ✅ Reset snackbar trigger
+        }
+    }
+}

@@ -243,7 +243,7 @@ class TicketViewModel @Inject constructor(
     suspend fun getCityFromCoordinates(tripId: String): String {
         return withContext(Dispatchers.IO) {
             Log.d("LOCATION_PROCESS", "🔄 Fetching city from coordinates...")
-            val cityName = locationRepository.getCityNameWithFallback(tripId)
+            val cityName = locationRepository.getBestTicketLocation(tripId)
 
             Log.d("LOCATION_PROCESS", "✅ Determined city: $cityName")
 

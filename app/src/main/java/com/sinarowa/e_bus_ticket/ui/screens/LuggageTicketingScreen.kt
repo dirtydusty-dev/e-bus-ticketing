@@ -3,8 +3,6 @@ package com.sinarowa.e_bus_ticket.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +30,7 @@ fun LuggageTicketingScreen(
     var price by remember { mutableStateOf("") }
     var priceError by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) } // ✅ Track button loading
+    var showSnackbar by remember { mutableStateOf(false) }
 
     // ✅ Detect user's city
     LaunchedEffect(tripId) {
@@ -42,18 +41,23 @@ fun LuggageTicketingScreen(
         }
     }
 
-
-    // ✅ Filter stops: Exclude `fromCity`
-    val validStops = remember(allStops, fromCity.value) {
-        allStops.filter { it != fromCity.value }
-    }
-
     Scaffold(
-        scaffoldState = scaffoldState
-    ) {
+        scaffoldState = scaffoldState,
+        topBar = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp), // ✅ Moves Snackbar down slightly from the absolute top
+                contentAlignment = Alignment.TopCenter
+            ) {
+                SnackbarHost(scaffoldState.snackbarHostState)
+            }
+        }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(paddingValues)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -71,7 +75,7 @@ fun LuggageTicketingScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // 📌 Destination Selection
-            DropdownMenuComponent("Select Destination", validStops, destination) { newSelection ->
+            DropdownMenuComponent("Select Destination", allStops.filter { it != fromCity.value }, destination) { newSelection ->
                 destination = newSelection
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -106,8 +110,7 @@ fun LuggageTicketingScreen(
 
             Button(
                 onClick = {
-                    isProcessing = true // ✅ Disable button immediately
-
+                    isProcessing = true // ✅ Show loading indicator
                     coroutineScope.launch {
                         val newTicket = com.sinarowa.e_bus_ticket.data.local.entities.Ticket(
                             ticketId = System.currentTimeMillis().toString(),
@@ -120,30 +123,41 @@ fun LuggageTicketingScreen(
                         )
                         ticketViewModel.insertTicket(newTicket)
 
-                        // ✅ Show success message
-                        scaffoldState.snackbarHostState.showSnackbar("Luggage ticket issued successfully!")
-
                         // 🔄 Reset fields properly
                         destination = ""
                         luggageDescription = ""
                         price = ""
                         isProcessing = false // ✅ Re-enable button after success
+                        showSnackbar = true
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                enabled = isButtonEnabled, // ✅ Disable while processing
+                modifier = Modifier.fillMaxWidth().height(50.dp), // ✅ Set button height
                 colors = ButtonDefaults.buttonColors(backgroundColor = if (isButtonEnabled) Color(0xFFFFEB3B) else Color.Gray),
-                shape = RoundedCornerShape(8.dp),
-                enabled = isButtonEnabled
+                shape = RoundedCornerShape(8.dp)
             ) {
                 if (isProcessing) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.Black
+                        modifier = Modifier
+                            .size(24.dp) // ✅ Ensure proper size
+                            .padding(4.dp),
+                        color = Color.Black,
+                        strokeWidth = 2.dp
                     )
                 } else {
                     Text("Issue Luggage Ticket", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
             }
+        }
+    }
+
+    // ✅ Show Snackbar properly
+    LaunchedEffect(showSnackbar) {
+        if (showSnackbar) {
+            coroutineScope.launch {
+                scaffoldState.snackbarHostState.showSnackbar("Luggage Ticket Issued Successfully!") // ✅ Display success message
+            }
+            showSnackbar = false // ✅ Reset snackbar trigger
         }
     }
 }

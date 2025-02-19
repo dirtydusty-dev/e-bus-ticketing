@@ -24,7 +24,8 @@ fun BluetoothDevicesScreen(
 ) {
     val devices = remember { mutableStateListOf<BluetoothDevice>() }
     var selectedPrinter by remember { mutableStateOf<BluetoothDevice?>(null) }
-    var isConnected by remember { mutableStateOf(bluetoothHelper.isPrinterConnected()) } // ✅ Use mutableStateOf
+    var isConnected by remember { mutableStateOf(bluetoothHelper.isPrinterConnected()) }
+    var isConnecting by remember { mutableStateOf(false) } // ✅ Track connection progress
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -69,7 +70,9 @@ fun BluetoothDevicesScreen(
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
                             .clickable {
-                                selectedPrinter = device
+                                if (!isConnecting) {
+                                    selectedPrinter = device
+                                }
                             },
                         elevation = 4.dp,
                         shape = RoundedCornerShape(12.dp),
@@ -91,23 +94,31 @@ fun BluetoothDevicesScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // ✅ Show progress indicator inside the button when connecting
         Button(
             onClick = {
                 selectedPrinter?.let { device ->
+                    isConnecting = true // ✅ Set loading state
                     coroutineScope.launch {
                         val success = bluetoothHelper.connectToPrinter(device)
-                        if (success) {
-                            isConnected = true // ✅ Properly update state
-                        }
+                        isConnected = success // ✅ Update connection state
+                        isConnecting = false // ✅ Stop loading
                     }
                 }
             },
-            enabled = selectedPrinter != null,
+            enabled = selectedPrinter != null && !isConnecting, // ✅ Disable when connecting
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFFFEB3B)),
+            colors = ButtonDefaults.buttonColors(backgroundColor = if (selectedPrinter != null) Color(0xFFFFEB3B) else Color.Gray),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Connect to Printer", color = Color.Black)
+            if (isConnecting) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.Black
+                )
+            } else {
+                Text("Connect to Printer", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            }
         }
     }
 }
