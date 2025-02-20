@@ -9,11 +9,17 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.sinarowa.e_bus_ticket.R
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
+import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -168,36 +174,114 @@ class BluetoothPrinterHelper(private val context: Context) {
         }
     }
 
-    fun printTicketWithLogo(context: Context, ticket: Ticket) {
+
+    // ✅ Converts PNG/JPG to a **black-and-white** ESC/POS compatible Bitmap
+    fun convertImageToEscPosBitmap(context: Context, imageResId: Int): Bitmap {
+        val originalBitmap = BitmapFactory.decodeResource(context.resources, imageResId)
+
+        // Convert to pure black & white using dithering
+        val bwBitmap = Bitmap.createBitmap(originalBitmap.width, originalBitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bwBitmap)
+        val paint = Paint()
+        paint.colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) }) // Grayscale
+        canvas.drawBitmap(originalBitmap, 0f, 0f, paint)
+
+        // Apply threshold to make it purely black & white (no grayscale)
+        for (y in 0 until bwBitmap.height) {
+            for (x in 0 until bwBitmap.width) {
+                val pixel = bwBitmap.getPixel(x, y)
+                val grayscale = Color.red(pixel) // Since grayscale, R = G = B
+                val bwColor = if (grayscale < 128) Color.BLACK else Color.WHITE
+                bwBitmap.setPixel(x, y, bwColor)
+            }
+        }
+
+        return bwBitmap
+    }
+
+    // ✅ Converts a **black-and-white bitmap** to ESC/POS format
+    fun convertBitmapToEscPos(bitmap: Bitmap): ByteArray {
+        val width = bitmap.width
+        val height = bitmap.height
+        val bytesPerRow = (width + 7) / 8  // Each byte stores 8 pixels
+        val escPosData = ByteArrayOutputStream()
+
+        // ✅ ESC/POS Command: Start Image Printing
+        escPosData.write(byteArrayOf(0x1D, 0x76, 0x30, 0x00)) // Image mode
+        escPosData.write(byteArrayOf((width / 8).toByte(), 0x00, height.toByte(), 0x00)) // Image dimensions
+
+        for (y in 0 until height) {
+            var rowByte = 0
+            var bit = 7
+            for (x in 0 until width) {
+                val pixel = bitmap.getPixel(x, y)
+                val isBlack = (pixel and 0xFF) < 128 // Convert to black & white threshold
+
+                if (isBlack) rowByte = rowByte or (1 shl bit)
+
+                if (bit == 0) {
+                    escPosData.write(rowByte) // ✅ Write a single processed row byte
+                    rowByte = 0
+                    bit = 7
+                } else {
+                    bit--
+                }
+            }
+            // ✅ Ensure width is a multiple of 8 (fill remaining bits)
+            if (bit != 7) {
+                escPosData.write(rowByte)
+            }
+        }
+
+        return escPosData.toByteArray() // ✅ Convert final data to a valid ByteArray
+    }
+
+
+
+    // ✅ Prints a Ticket with a **Logo Image** + Text
+    fun printTicketWithLogo(context: Context, ticket: Ticket, tripDetails: TripDetails) {
         try {
             if (!hasBluetoothPermissions()) {
                 Log.e("BluetoothPrinter", "❌ Cannot print: Missing Bluetooth permissions!")
                 return
             }
 
-            // 1️⃣ Print Logo
+            if (!isPrinterConnected()) {
+                Log.e("BluetoothPrinter", "❌ Printer is not connected!")
+                return
+            }
+
+            // ✅ Convert Logo Image to ESC/POS Format
             val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.converted_logo)
             val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 384, bitmap.height * 384 / bitmap.width, false)
             val escPosData = convertBitmapToEscPos(resizedBitmap)
-            outputStream?.write(escPosData)
+
+            // ✅ Send Image Data to Printer
+            outputStream?.write(escPosData) // ✅ Properly sends ByteArray
             outputStream?.flush()
 
-            // 2️⃣ Print Ticket Details with Formatting
+            // ✅ Print Ticket Details
             val ticketText = buildString {
                 append("\n")
                 append("\u001B\u0041\u0001")  // Center align
                 append("\u001B\u0045\u0001")  // Bold text
                 append("=====================\n")
                 append("   GOVASBURG TICKET  \n")
+                append("Manager +263772701350\n")
+                append("${tripDetails.creationTime} \n")
                 append("=====================\n")
                 append("\u001B\u0045\u0000")  // Cancel bold
-                append("\u001B\u0044\u0005\u0014\u0000") // Set tab stops
                 append("From: ${ticket.fromStop}\n")
                 append("To:   ${ticket.toStop}\n")
+                append("Type:   ${ticket.ticketType}\n")
                 append("Price: $${ticket.price}\n")
-                append("Seat:  ${ticket.ticketId.takeLast(2)}\n")
+                append("\n")
+                append("\n")
+                append("${ticket.ticketId}\n")
                 append("=====================\n")
                 append("   Thank You!  \n\n")
+                append("\n")
+                append("=====================\n")
                 append("\u001D\u0056\u0001") // Cut paper
             }
 
@@ -210,59 +294,5 @@ class BluetoothPrinterHelper(private val context: Context) {
             Log.e("BluetoothPrinter", "❌ Error printing: ${e.message}")
         }
     }
-
-
-    /**
-     * ✅ Converts Bitmap to ESC/POS (Thermal Printer Format)
-     */
-    fun convertBitmapToEscPos(bitmap: Bitmap): ByteArray {
-        val width = bitmap.width
-        val height = bitmap.height
-        val pixels = IntArray(width * height)
-        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-
-        val bytesPerRow = (width + 7) / 8  // Ensure width is divisible by 8
-        val imageBytes = ByteArray(height * (bytesPerRow + 4))  // Extra bytes for ESC/POS format
-        var byteIndex = 0
-
-        for (y in 0 until height) {
-            // ESC/POS commands for printing bit images
-            imageBytes[byteIndex++] = 0x1D.toByte()
-            imageBytes[byteIndex++] = 0x76.toByte()
-            imageBytes[byteIndex++] = 0x30.toByte()
-            imageBytes[byteIndex++] = 0x00.toByte() // Normal mode
-            imageBytes[byteIndex++] = (width / 8).toByte()
-            imageBytes[byteIndex++] = 0x00.toByte()  // Width in pixels (little-endian)
-            imageBytes[byteIndex++] = height.toByte()
-            imageBytes[byteIndex++] = 0x00.toByte()  // Height in pixels (little-endian)
-
-            var slice = 0
-            var bit = 7
-            for (x in 0 until width) {
-                val color = pixels[y * width + x]
-                val grayscale = (color shr 16 and 0xFF) * 0.3 + (color shr 8 and 0xFF) * 0.59 + (color and 0xFF) * 0.11
-                val isBlack = grayscale < 128  // Threshold for black/white
-
-                if (isBlack) slice = slice or (1 shl bit)
-
-                if (bit == 0) {
-                    imageBytes[byteIndex++] = slice.toByte()
-                    slice = 0
-                    bit = 7
-                } else {
-                    bit--
-                }
-            }
-
-            // Fill remaining bits if not a multiple of 8
-            if (bit != 7) {
-                imageBytes[byteIndex++] = slice.toByte()
-            }
-        }
-
-        return imageBytes.copyOf(byteIndex) // Trim excess bytes
-    }
-
-
 
 }

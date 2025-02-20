@@ -101,11 +101,11 @@ class MainActivity : ComponentActivity() {
 
                 composable("passengerTickets/{tripId}") { backStackEntry ->
                     val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
-                    PassengerTicketingScreen(tripId, ticketViewModel)
+                    PassengerTicketingScreen(tripId, ticketViewModel,tripViewModel, bluetoothHelper)
                 }
                 composable("luggageTickets/{tripId}") { backStackEntry ->
                     val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
-                    LuggageTicketingScreen(tripId, ticketViewModel)
+                    LuggageTicketingScreen(tripId, ticketViewModel,tripViewModel, bluetoothHelper)
                 }
                 composable("tripDashboard/{tripId}") { backStackEntry ->
                     val tripId = backStackEntry.arguments?.getString("tripId") ?: ""

@@ -19,14 +19,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
+import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
 import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
 import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
+import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 @Composable
 fun PassengerTicketingScreen(
     tripId: String,
     ticketViewModel: TicketViewModel = viewModel(),
+    tripViewModel: TripViewModel = viewModel(),
+    bluetoothHelper: BluetoothPrinterHelper
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -39,6 +44,16 @@ fun PassengerTicketingScreen(
 
     // ✅ Track state to reset UI
     var formStateKey by remember { mutableStateOf(0) }
+
+
+    val tripDetails by tripViewModel.selectedTrip.collectAsState()
+
+
+
+    LaunchedEffect(tripId) {
+        tripViewModel.loadTripById(tripId)
+    }
+
 
     key(formStateKey) {
         val fromCity = remember { mutableStateOf("Detecting...") }
@@ -116,11 +131,13 @@ fun PassengerTicketingScreen(
                     fromCity.value != destination &&
                     price > 0.0
 
+            val ticketId = tripDetails?.let { tripViewModel.generateTicketId(it.routeName) } ?: tripViewModel.generateTicketIdFallback()
+
             Button(
                 onClick = {
                     coroutineScope.launch {
                         val newTicket = Ticket(
-                            ticketId = System.currentTimeMillis().toString(),
+                            ticketId = ticketId,
                             tripId = tripId,
                             fromStop = fromCity.value,
                             toStop = destination,
@@ -134,7 +151,9 @@ fun PassengerTicketingScreen(
                         formStateKey++
 
                         // 🖨️ Print ticket
-                        //bluetoothPrinterHelper.printTicketWithLogo(context, newTicket)
+                        tripDetails?.let {
+                            bluetoothHelper.printTicketWithLogo(context, newTicket, it)
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

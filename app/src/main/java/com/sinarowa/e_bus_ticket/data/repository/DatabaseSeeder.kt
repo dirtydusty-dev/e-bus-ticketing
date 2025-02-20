@@ -16,9 +16,9 @@ object DatabaseSeeder {
         withContext(Dispatchers.IO) {
             // ✅ Insert Routes
             val routes = listOf(
-                RouteEntity("1", "Harare to Bulawayo", "Harare", "Bulawayo", "Harare,Kadoma,Kwekwe,Gweru,Bulawayo"),
-                RouteEntity("2", "Harare to Mutare", "Harare", "Mutare", "Harare,Marondera,Rusape,Mutare"),
-                RouteEntity("3", "Bulawayo to Victoria Falls", "Bulawayo", "Victoria Falls", "Bulawayo,Hwange,Victoria Falls")
+                RouteEntity("1", "HRE-BYO", "Harare", "Bulawayo", "Harare,Kadoma,Kwekwe,Gweru,Bulawayo"),
+                RouteEntity("2", "HRE-MUT", "Harare", "Mutare", "Harare,Marondera,Rusape,Mutare"),
+                RouteEntity("3", "BYO to VTF", "Bulawayo", "Victoria Falls", "Bulawayo,Hwange,Victoria Falls")
             )
             routeDao.insertRoutes(routes)
 
@@ -55,7 +55,7 @@ object DatabaseSeeder {
             locationDao.insertLocations(locations)
 
             val buses = listOf(
-                BusEntity("B1", "ZUPCO-101", "ZUPCO-101", 60),
+                BusEntity("B1", "Muridzi Wenyaya", "ZUPCO-101", 60),
                 BusEntity("B2", "CityLink-202", "CityLink-202", 50),
                 BusEntity("B3", "InterAfrica-303", "InterAfrica-303", 55),
                 BusEntity("B4", "TripTrans-404", "TripTrans-404", 45),

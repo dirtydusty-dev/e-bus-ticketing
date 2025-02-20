@@ -7,18 +7,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
 import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
+import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun LuggageTicketingScreen(
     tripId: String,
     ticketViewModel: TicketViewModel = viewModel(),
+    tripViewModel: TripViewModel = viewModel(),
+    bluetoothHelper: BluetoothPrinterHelper
 ) {
     val scaffoldState = rememberScaffoldState()
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val fromCity = remember { mutableStateOf("Detecting...") }
     val routeStops by ticketViewModel.routeStops.collectAsState()
@@ -31,6 +37,15 @@ fun LuggageTicketingScreen(
     var priceError by remember { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) } // ✅ Track button loading
     var showSnackbar by remember { mutableStateOf(false) }
+
+
+    val tripDetails by tripViewModel.selectedTrip.collectAsState()
+
+
+
+    LaunchedEffect(tripId) {
+        tripViewModel.loadTripById(tripId)
+    }
 
     // ✅ Detect user's city
     LaunchedEffect(tripId) {
@@ -81,13 +96,13 @@ fun LuggageTicketingScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // 🏋🏽 Luggage Weight/Description (Optional)
-            OutlinedTextField(
+            /*OutlinedTextField(
                 value = luggageDescription,
                 onValueChange = { luggageDescription = it },
                 label = { Text("Estimate Weight / Description (Optional)") },
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))*/
 
             // 💰 Price Input (Manual Entry)
             OutlinedTextField(
@@ -108,12 +123,14 @@ fun LuggageTicketingScreen(
             // ✅ Issue Luggage Ticket Button
             val isButtonEnabled = destination.isNotEmpty() && !priceError && price.isNotEmpty() && !isProcessing
 
+            val ticketId = tripDetails?.let { tripViewModel.generateTicketId(it.routeName) } ?: tripViewModel.generateTicketIdFallback()
+
             Button(
                 onClick = {
                     isProcessing = true // ✅ Show loading indicator
                     coroutineScope.launch {
                         val newTicket = com.sinarowa.e_bus_ticket.data.local.entities.Ticket(
-                            ticketId = System.currentTimeMillis().toString(),
+                            ticketId = ticketId,
                             tripId = tripId,
                             fromStop = fromCity.value,
                             toStop = destination,
@@ -129,6 +146,10 @@ fun LuggageTicketingScreen(
                         price = ""
                         isProcessing = false // ✅ Re-enable button after success
                         showSnackbar = true
+
+                        tripDetails?.let {
+                            bluetoothHelper.printTicketWithLogo(context, newTicket, it)
+                        }
                     }
                 },
                 enabled = isButtonEnabled, // ✅ Disable while processing

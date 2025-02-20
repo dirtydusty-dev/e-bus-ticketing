@@ -19,6 +19,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
 
@@ -47,6 +48,8 @@ class TripViewModel @Inject constructor(
     private val _selectedTrip = MutableStateFlow<TripDetails?>(null)
     val selectedTrip: StateFlow<TripDetails?> = _selectedTrip
 
+
+
     init {
         Log.d("TripViewModel", "Initializing ViewModel, loading routes and buses")
         loadRoutes()
@@ -58,6 +61,19 @@ class TripViewModel @Inject constructor(
             _selectedTrip.value = tripDao.getTripById(tripId)
         }
     }
+
+    fun generateTicketId(routeName: String): String {
+        val prefix = routeName.uppercase() // First 3 letters of route name
+        val timestamp = System.currentTimeMillis() // Unique time-based ID
+        val randomPart = UUID.randomUUID().toString().takeLast(4) // Random for extra uniqueness
+        return "$prefix-$timestamp-$randomPart"
+    }
+
+    fun generateTicketIdFallback(): String {
+        return "UNKNOWN-${System.currentTimeMillis()}-${UUID.randomUUID().toString().takeLast(4)}"
+    }
+
+
 
     suspend fun endTrip(tripId: String) {
         tripRepository.endTripById(tripId, 1, getFormattedTimestamp())
