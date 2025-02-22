@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,10 +45,22 @@ fun PassengerTicketingScreen(
 
     // ✅ Track state to reset UI
     var formStateKey by remember { mutableStateOf(0) }
+    var isProcessing by remember { mutableStateOf(false) }
+    val scaffoldState = rememberScaffoldState() // ✅ Define scaffoldState here
+    var showSnackbar by remember { mutableStateOf(false) }
 
 
     val tripDetails by tripViewModel.selectedTrip.collectAsState()
 
+
+    LaunchedEffect(showSnackbar) {
+        if (showSnackbar) {
+            coroutineScope.launch {
+                scaffoldState.snackbarHostState.showSnackbar("Ticket Sold Successfully!")
+            }
+            showSnackbar = false // Reset Snackbar
+        }
+    }
 
 
     LaunchedEffect(tripId) {
@@ -89,6 +102,8 @@ fun PassengerTicketingScreen(
             }
         }
 
+
+
         Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -113,16 +128,36 @@ fun PassengerTicketingScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // 💺 Seat Number & Remaining Seats
-            Card(modifier = Modifier.fillMaxWidth(), elevation = 4.dp, backgroundColor = Color.White) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                elevation = 4.dp,
+                backgroundColor = Color.White
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text("Seat Number: ${ticketCount + 1}", style = MaterialTheme.typography.h6, color = Color(0xFF1565C0))
-                    Text("Remaining Seats: ${remainingSeats.value}", style = MaterialTheme.typography.body2, color = Color.DarkGray)
+                    Divider(modifier = Modifier.padding(vertical = 8.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Remaining Seats", style = MaterialTheme.typography.body2, color = Color.DarkGray)
+                        Text("${remainingSeats.value}", style = MaterialTheme.typography.h6, color = Color.Red)
+                    }
                 }
             }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // 💰 Display Price
+            Slider(
+                value = price.toFloat(),
+                onValueChange = {},
+                valueRange = 0f..20f,
+                enabled = false,// Set a reasonable ticket range
+                steps = 5
+            )
             Text("Price: $$price", style = MaterialTheme.typography.h6, color = Color(0xFFFFEB3B))
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // ✅ Sell Ticket Button (DISABLED if conditions are not met)
@@ -131,13 +166,14 @@ fun PassengerTicketingScreen(
                     fromCity.value != destination &&
                     price > 0.0
 
-            val ticketId = tripDetails?.let { tripViewModel.generateTicketId(it.routeName) } ?: tripViewModel.generateTicketIdFallback()
-
             Button(
                 onClick = {
-                    coroutineScope.launch {
+                    isProcessing = true
+                    coroutineScope.launch {  // ✅ Runs in coroutine
+                        val ticketId = ticketViewModel.generateTicketId(tripId)  // ✅ Call suspend function inside coroutine
+
                         val newTicket = Ticket(
-                            ticketId = ticketId,
+                            ticketId = ticketId, // ✅ Ensure ticketId is properly formatted
                             tripId = tripId,
                             fromStop = fromCity.value,
                             toStop = destination,
@@ -145,15 +181,16 @@ fun PassengerTicketingScreen(
                             ticketType = ticketType
                         )
                         ticketViewModel.insertTicket(newTicket)
-                        remainingSeats.value -= 1
+                        ticketViewModel.refreshTicketCount(tripId, ticketId)  // ✅ Update ticket count
 
-                        // 🔄 Reset page
+                        remainingSeats.value -= 1
                         formStateKey++
 
-                        // 🖨️ Print ticket
                         tripDetails?.let {
                             bluetoothHelper.printTicketWithLogo(context, newTicket, it)
                         }
+                        isProcessing = false
+                        showSnackbar = true
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -161,8 +198,19 @@ fun PassengerTicketingScreen(
                 shape = RoundedCornerShape(8.dp),
                 enabled = isButtonEnabled
             ) {
-                Text("Sell Ticket", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                if (isProcessing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.Black
+                    )
+                } else {
+                    Icon(Icons.Default.Print, contentDescription = "Print")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Sell & Print", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                }
             }
+
+
         }
     }
 }

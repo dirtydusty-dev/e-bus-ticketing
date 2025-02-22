@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
 
                 composable("reports/{tripId}") { backStackEntry ->
                     val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
-                    ReportsScreen(tripId, tripViewModel,ticketViewModel)
+                    ReportsScreen(tripId, tripViewModel,ticketViewModel,bluetoothHelper)
                 }
 
                 composable("passengerTickets/{tripId}") { backStackEntry ->

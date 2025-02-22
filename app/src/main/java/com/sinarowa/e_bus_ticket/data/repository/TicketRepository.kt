@@ -1,13 +1,42 @@
 package com.sinarowa.e_bus_ticket.data.repository
+import com.sinarowa.e_bus_ticket.data.local.dao.TicketCounterDao
 import com.sinarowa.e_bus_ticket.data.local.dao.TicketDao
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
+import com.sinarowa.e_bus_ticket.data.local.entities.TicketCounter
+import com.sinarowa.e_bus_ticket.data.local.entities.TicketSummary
 import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class TicketRepository @Inject constructor(
-    private val ticketDao: TicketDao
+    private val ticketDao: TicketDao,
+    private val ticketCounterDao: TicketCounterDao
 ) {
+
+
+    fun getFirstTicket(tripId: String): TicketSummary? {
+        return ticketDao.getFirstTicket(tripId)
+    }
+
+    fun getLastTicket(tripId: String): TicketSummary? {
+        return ticketDao.getLastTicket(tripId)
+    }
+
+
+    suspend fun getLastTicketNumber(tripId: String): Int {
+        return withContext(Dispatchers.IO) {  // ✅ Runs in the background
+            ticketCounterDao.getLastTicketNumber(tripId) ?: 0
+        }
+    }
+
+    suspend fun updateLastTicketNumber(tripId: String, newNumber: Int) {
+        withContext(Dispatchers.IO) { // ✅ Runs in the background
+            ticketCounterDao.insertOrUpdate(TicketCounter(tripId, newNumber))
+        }
+    }
+
     fun getTicketsByTrip(tripId: String): Flow<List<Ticket>> {
         return ticketDao.getTicketsByTrip(tripId)
     }

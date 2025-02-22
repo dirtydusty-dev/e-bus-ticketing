@@ -51,4 +51,7 @@ object AppModule {
 
     @Provides
     fun provideTicketDao(database: BusTicketingDatabase): TicketDao = database.ticketDao()
+
+    @Provides
+    fun provideTicketCounterDao(database: BusTicketingDatabase): TicketCounterDao = database.ticketCounterDao()
 }

@@ -237,6 +237,46 @@ class BluetoothPrinterHelper(private val context: Context) {
     }
 
 
+    fun printReport(context: Context, report: String){
+
+        try {
+            if (!hasBluetoothPermissions()) {
+                Log.e("BluetoothPrinter", "❌ Cannot print: Missing Bluetooth permissions!")
+                return
+            }
+
+            if (!isPrinterConnected()) {
+                Log.e("BluetoothPrinter", "❌ Printer is not connected!")
+                return
+            }
+
+            val bitmap = BitmapFactory.decodeResource(context.resources, R.drawable.converted_logo)
+            val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 384, bitmap.height * 384 / bitmap.width, false)
+            val escPosData = convertBitmapToEscPos(resizedBitmap)
+
+            // ✅ Send Image Data to Printer
+            outputStream?.write(escPosData) // ✅ Properly sends ByteArray
+            outputStream?.flush()
+
+            val formattedReport = buildString {
+                append("\n")
+                append("\n")
+                append(report) // ✅ Print the full formatted report text
+                append("\n")
+                append("\n")
+                append("\u001D\u0056\u0001") // Cut paper
+            }
+
+            outputStream?.write(formattedReport.toByteArray())
+            outputStream?.flush()
+
+        } catch (e: IOException) {
+            Log.e("BluetoothPrinter", "❌ Error printing: ${e.message}")
+        }
+
+    }
+
+
 
     // ✅ Prints a Ticket with a **Logo Image** + Text
     fun printTicketWithLogo(context: Context, ticket: Ticket, tripDetails: TripDetails) {

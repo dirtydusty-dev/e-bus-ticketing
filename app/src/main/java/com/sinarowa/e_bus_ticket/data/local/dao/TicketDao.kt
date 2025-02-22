@@ -1,11 +1,20 @@
 package com.sinarowa.e_bus_ticket.data.local.dao
 import androidx.room.*
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
+import com.sinarowa.e_bus_ticket.data.local.entities.TicketSummary
 import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TicketDao {
+
+
+    @Query("SELECT ticketId, creationTime FROM tickets WHERE tripId = :tripId ORDER BY ticketId ASC LIMIT 1")
+    fun getFirstTicket(tripId: String): TicketSummary?
+
+    // ✅ Fetch the last ticket summary in a trip
+    @Query("SELECT ticketId, creationTime FROM tickets WHERE tripId = :tripId ORDER BY ticketId DESC LIMIT 1")
+    fun getLastTicket(tripId: String): TicketSummary?
 
     @Query("SELECT * FROM tickets")
     fun getAllTickets(): Flow<List<Ticket>>  // ✅ Fetch all unsynced tickets

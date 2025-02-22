@@ -3,11 +3,10 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.sinarowa.e_bus_ticket.utils.TimeUtils.getFormattedTimestamp
 
-@Entity(tableName = "tickets")
+@Entity(tableName = "tickets", primaryKeys = ["tripId", "ticketId"])
 data class Ticket(
-    @PrimaryKey val ticketId: String,
-    val tripId: String,
-    //val seatNumber: Int,
+    val tripId: String,  // Primary Key (Part 1)
+    val ticketId: Int, // Primary Key (Part 2)
     val fromStop: String,
     val toStop: String,
     val price: Double,
@@ -18,4 +17,3 @@ data class Ticket(
     val cancelReason: String? = null,
     val cancelTime: Long? = null
 )
-

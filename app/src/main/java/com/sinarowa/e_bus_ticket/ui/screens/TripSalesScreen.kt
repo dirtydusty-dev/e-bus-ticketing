@@ -12,111 +12,101 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import com.sinarowa.e_bus_ticket.utils.PdfUtils
+import com.sinarowa.e_bus_ticket.utils.ReportUtils
 import kotlinx.coroutines.launch
 
 @Composable
 fun TripSalesScreen(tripSales: List<TripViewModel.TripSale>, context: Context) {
-    var isExporting by remember { mutableStateOf(false) } // ✅ Track export state
-    var showSnackbar by remember { mutableStateOf(false) } // ✅ Track snackbar visibility
     val scaffoldState = rememberScaffoldState()
     val coroutineScope = rememberCoroutineScope()
+
+    // 🔹 Prepare Data for the Report
+    val tripsCount = tripSales.size
+    val totalTickets = tripSales.sumOf { it.totalTickets }
+    val cancelledTickets = 0  // Placeholder, update if needed
+    val firstTicketNumber = "000002" // Placeholder, fetch dynamically
+    val lastTicketNumber = "000003"  // Placeholder, fetch dynamically
+    val firstTicketTime = "12:23" // Placeholder, fetch dynamically
+    val lastTicketTime = "12:23"  // Placeholder, fetch dynamically
+
+    val ticketDetails = tripSales.flatMap { it.routeBreakdown }
+        .flatMap { it.ticketBreakdown }
+        .groupBy { it.type }
+        .mapValues { (_, tickets) -> tickets.sumOf { it.count } to tickets.sumOf { it.amount } }
+
+    val paymentDetails = mapOf("Cash" to (2 to 7.50)) // Placeholder, update dynamically
+
+    val tripSalesList = tripSales.map { it.routeName to it.totalSales }
+
+    val expenses = mapOf("CLEANING" to 12.25, "DRIVER WAGE" to 0.38) // Placeholder, update dynamically
+
+    // 🔹 Generate Report Text
+  /*  val reportText = ReportUtils.generateDailySalesReport(
+        companyName = "Sinarowa Limited",
+        date = "2/21/25",
+        deviceId = "63d9c65eed502d2d",
+        tripsCount = tripsCount,
+        totalTickets = totalTickets,
+        cancelledTickets = cancelledTickets,
+        firstTicketNumber = firstTicketNumber,
+        lastTicketNumber = lastTicketNumber,
+        firstTicketTime = firstTicketTime,
+        lastTicketTime = lastTicketTime,
+        ticketDetails = ticketDetails,
+        paymentDetails = paymentDetails,
+        tripSales = tripSalesList,
+        expenses = expenses
+    )*/
 
     Scaffold(
         scaffoldState = scaffoldState,
         topBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp), // ✅ Moves Snackbar down slightly from the absolute top
-                contentAlignment = Alignment.TopCenter
-            ) {
-                SnackbarHost(scaffoldState.snackbarHostState)
-            }
+            TopAppBar(
+                title = { Text("Daily Sales Report") },
+                backgroundColor = Color(0xFF1565C0),
+                contentColor = Color.White
+            )
         }
     ) { paddingValues ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
+            modifier = Modifier.fillMaxSize().padding(paddingValues)
         ) {
-            Text("Trip Sales Report", style = MaterialTheme.typography.h5)
-
-            LazyColumn {
-                items(tripSales) { sale ->
-                    Card(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Route: ${sale.routeName}")
-                            Text("Total Tickets Sold: ${sale.totalTickets}")
-                            Text("Total Sales: \$${sale.totalSales}")
-                            Text("Total Expenses: \$${sale.totalExpenses}")
-                            Text("Net Sales: \$${sale.netSales}")
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            sale.routeBreakdown.forEach { route ->
-                                Text("From: ${route.fromCity} To: ${route.toCity}")
-                                route.ticketBreakdown.forEach { ticket ->
-                                    Text("  - ${ticket.type}: ${ticket.count} tickets (\$${ticket.amount})")
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Expense Breakdown:")
-                            sale.expenseBreakdown.forEach { expense ->
-                                Text("  - ${expense.type}: ${expense.count} entries (\$${expense.totalAmount})")
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // ✅ Export PDF Button with Loading Indicator & Snackbar
-            Button(
-                onClick = {
-                    isExporting = true // ✅ Instantly update the UI
-                    coroutineScope.launch {
-                        PdfUtils.generateTripSalesPdf(
-                            context,
-                            tripSales,
-                            companyName = "Govasburg Bus Company",
-                            companyContact = "+263 712 345 678 ",
-                            conductorName = "John Doe",
-                            tripStartTime = "06:30 AM",
-                            tripDate = "19 Feb 2025",
-                            busReg = "ZIM 1234",
-                            busName = "Blue Express"
-                        )
-                        isExporting = false // ✅ Hide loading when done
-                        showSnackbar = true  // ✅ Show success Snackbar
-                    }
-                },
-                enabled = !isExporting, // ✅ Disable while exporting
-                modifier = Modifier.fillMaxWidth().height(50.dp) // ✅ Ensure consistent height
+            /*LazyColumn(
+                modifier = Modifier.weight(1f) // Allows scrolling
             ) {
-                if (isExporting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(24.dp) // ✅ Ensure proper size
-                            .padding(4.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
+                item {
+                    Text(
+                        reportText,
+                        style = MaterialTheme.typography.body2,
+                        modifier = Modifier.padding(16.dp)
                     )
-                } else {
+                }
+            }*/
+
+            // ✅ Fixed Button at the Bottom
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            PdfUtils.generateTripSalesPdf(
+                                context, tripSales, "Sinarowa Limited",
+                                "+263 712 345 678 ", "John Doe",
+                                "06:30 AM", "19 Feb 2025",
+                                "ZIM 1234", "Blue Express"
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp)
+                ) {
                     Text("Export PDF")
                 }
             }
         }
     }
-
-    // ✅ Show Snackbar properly
-    LaunchedEffect(showSnackbar) {
-        if (showSnackbar) {
-            coroutineScope.launch {
-                scaffoldState.snackbarHostState.showSnackbar("PDF Exported Successfully!") // ✅ Display success message
-            }
-            showSnackbar = false // ✅ Reset snackbar trigger
-        }
-    }
 }
+
+

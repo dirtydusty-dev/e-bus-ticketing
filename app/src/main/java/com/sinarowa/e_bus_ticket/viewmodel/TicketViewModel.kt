@@ -1,6 +1,8 @@
 package com.sinarowa.e_bus_ticket.viewmodel
 
 import android.util.Log
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
@@ -41,6 +43,9 @@ class TicketViewModel @Inject constructor(
     private val _routeStops = MutableStateFlow<List<String>>(emptyList()) // ✅ Route stops
     val routeStops = _routeStops.asStateFlow()
 
+    private val _generatedTicketId = MutableLiveData<String>()
+    val generatedTicketId: LiveData<String> = _generatedTicketId
+
 
     fun updateTicketCount(tripId: String) {
         viewModelScope.launch {
@@ -52,10 +57,26 @@ class TicketViewModel @Inject constructor(
         }
     }
 
+    fun refreshTicketCount(tripId: String, ticketId: Int) {
+        viewModelScope.launch {
+            ticketRepository.updateLastTicketNumber(tripId, ticketId) // ✅ Call it without .first()
+            _ticketCount.value = ticketId  // ✅ Update the ticket count state
+        }
+    }
+
+
+
     fun getTicketsByCity(): Flow<Map<String, List<Ticket>>> {
         return ticketRepository.getAllTickets()
             .map { tickets -> tickets.groupBy { it.fromStop } } // Group tickets by 'fromStop'
     }
+
+    suspend fun generateTicketId(tripId: String): Int {
+        val lastTicketNumber = ticketRepository.getLastTicketNumber(tripId)
+        return lastTicketNumber + 1  // ✅ Returns an Int
+    }
+
+
 
 
 

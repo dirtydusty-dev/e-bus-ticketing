@@ -2,14 +2,17 @@ package com.sinarowa.e_bus_ticket.utils
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.Uri
 import com.itextpdf.kernel.pdf.PdfDocument
 import android.os.Environment
 import android.provider.MediaStore
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 
 import android.util.Log
+import android.widget.Toast
 import com.itextpdf.io.image.ImageDataFactory
 import com.itextpdf.io.source.ByteArrayOutputStream
 import com.itextpdf.kernel.pdf.PdfWriter
@@ -18,9 +21,39 @@ import com.itextpdf.layout.Document
 import com.itextpdf.layout.element.Image
 import com.itextpdf.layout.element.Table
 import com.sinarowa.e_bus_ticket.R
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 
 
 object PdfUtils {
+
+    fun saveReportToFile(context: Context, reportText: String) {
+        try {
+            val fileName = "DailySalesReport_${System.currentTimeMillis()}.txt"
+            val directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val file = File(directory, fileName)
+
+            FileOutputStream(file).use { output ->
+                output.write(reportText.toByteArray())
+            }
+
+            Log.d("FileExport", "✅ Report saved at: ${file.absolutePath}")
+
+            // Notify user
+            Toast.makeText(context, "Report exported to Downloads!", Toast.LENGTH_SHORT).show()
+
+            // Optional: Open file after saving
+            val intent = Intent(Intent.ACTION_VIEW)
+            intent.setDataAndType(Uri.fromFile(file), "text/plain")
+            intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.startActivity(Intent.createChooser(intent, "Open Report"))
+
+        } catch (e: IOException) {
+            Log.e("FileExport", "❌ Error saving file: ${e.message}")
+        }
+    }
+
 
 
 

@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
 import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
@@ -123,22 +124,24 @@ fun LuggageTicketingScreen(
             // ✅ Issue Luggage Ticket Button
             val isButtonEnabled = destination.isNotEmpty() && !priceError && price.isNotEmpty() && !isProcessing
 
-            val ticketId = tripDetails?.let { tripViewModel.generateTicketId(it.routeName) } ?: tripViewModel.generateTicketIdFallback()
 
             Button(
                 onClick = {
                     isProcessing = true // ✅ Show loading indicator
                     coroutineScope.launch {
-                        val newTicket = com.sinarowa.e_bus_ticket.data.local.entities.Ticket(
-                            ticketId = ticketId,
+                        val ticketId = ticketViewModel.generateTicketId(tripId)  // ✅ Ensure this runs before creating ticket
+
+                        val newTicket = Ticket(
+                            ticketId = ticketId, // ✅ Ensure it's formatted correctly
                             tripId = tripId,
                             fromStop = fromCity.value,
                             toStop = destination,
                             luggage = luggageDescription,
-                            price = price.toDouble(),
+                            price = price.toDoubleOrNull() ?: 0.0, // ✅ Ensure it's a valid Double
                             ticketType = "Luggage" + if (luggageDescription.isNotEmpty()) " ($luggageDescription)" else ""
                         )
                         ticketViewModel.insertTicket(newTicket)
+                        ticketViewModel.refreshTicketCount(tripId, ticketId)
 
                         // 🔄 Reset fields properly
                         destination = ""
@@ -169,6 +172,7 @@ fun LuggageTicketingScreen(
                     Text("Issue Luggage Ticket", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
             }
+
         }
     }
 
