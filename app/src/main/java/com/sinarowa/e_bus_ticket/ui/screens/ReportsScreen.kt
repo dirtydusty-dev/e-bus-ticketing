@@ -36,7 +36,7 @@ fun ReportsScreen(tripId: String, tripViewModel: TripViewModel, ticketViewModel:
         tripViewModel.fetchTripSalesById(tripId)
     }
 
-    val tripSales by tripViewModel.tripSales.collectAsState(initial = emptyList())
+    //val tripSales by tripViewModel.tripSales.collectAsState(initial = emptyList())
 
     Column(
         modifier = Modifier

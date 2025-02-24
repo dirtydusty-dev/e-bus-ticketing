@@ -12,6 +12,7 @@ data class Ticket(
     val price: Double,
     val ticketType: String,
     val luggage: String? = null,
+    val status: Int = 0,
     val creationTime: String = getFormattedTimestamp(),
     val isCancelled: Int = 0, // 0 = Not Cancelled, 1 = Cancelled
     val cancelReason: String? = null,

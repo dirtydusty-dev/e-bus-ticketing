@@ -13,10 +13,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
 import com.sinarowa.e_bus_ticket.data.local.entities.BusEntity
+import com.sinarowa.e_bus_ticket.data.repository.LocationRepository
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 
 @Composable
-fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
+fun CreateTripScreen(viewModel: TripViewModel, navController: NavController, locationRepository: LocationRepository) {
     val routes by viewModel.routes.collectAsState(initial = emptyList())
     val buses by viewModel.buses.collectAsState(initial = emptyList())
 

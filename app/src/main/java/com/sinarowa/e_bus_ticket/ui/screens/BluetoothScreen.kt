@@ -18,37 +18,27 @@ import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
 import kotlinx.coroutines.launch
 
 @Composable
-fun BluetoothDevicesScreen(
-    bluetoothHelper: BluetoothPrinterHelper,
-    activity: Activity
-) {
-    val devices = remember { mutableStateListOf<BluetoothDevice>() }
+fun BluetoothDevicesScreen(bluetoothHelper: BluetoothPrinterHelper, activity: Activity) {
+    val devices by bluetoothHelper.pairedDevices.collectAsState()
+    val isConnected by bluetoothHelper.isConnected.collectAsState()
+
     var selectedPrinter by remember { mutableStateOf<BluetoothDevice?>(null) }
-    var isConnected by remember { mutableStateOf(bluetoothHelper.isPrinterConnected()) }
-    var isConnecting by remember { mutableStateOf(false) } // ✅ Track connection progress
+    var isConnecting by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         if (!bluetoothHelper.hasBluetoothPermissions()) {
             bluetoothHelper.requestBluetoothPermissions(activity)
         } else {
-            devices.clear()
-            devices.addAll(bluetoothHelper.getPairedPrinters())
-            isConnected = bluetoothHelper.isPrinterConnected()
+            bluetoothHelper.updatePairedDevices()
         }
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().background(Color.White).padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "Paired Bluetooth Printers",
-            style = MaterialTheme.typography.h5.copy(color = Color(0xFF1565C0))
-        )
+        Text("Paired Bluetooth Printers", style = MaterialTheme.typography.h5.copy(color = Color(0xFF1565C0)))
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
@@ -58,35 +48,22 @@ fun BluetoothDevicesScreen(
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (devices.isEmpty()) {
-            Text("No paired printers found.", color = Color.Gray)
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(devices) { device ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .clickable {
-                                if (!isConnecting) {
-                                    selectedPrinter = device
-                                }
-                            },
-                        elevation = 4.dp,
-                        shape = RoundedCornerShape(12.dp),
-                        backgroundColor = if (selectedPrinter == device) Color(0xFFFFEB3B) else Color(0xFF87CEEB)
+        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+            items(devices) { device ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .clickable { if (!isConnecting) selectedPrinter = device },
+                    elevation = 4.dp,
+                    shape = RoundedCornerShape(12.dp),
+                    backgroundColor = if (selectedPrinter == device) Color(0xFFFFEB3B) else Color(0xFF87CEEB)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = device.name ?: "Unknown Device",
-                                color = Color.Black
-                            )
-                        }
+                        Text(text = device.name ?: "Unknown Device", color = Color.Black)
                     }
                 }
             }
@@ -94,31 +71,39 @@ fun BluetoothDevicesScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // ✅ Show progress indicator inside the button when connecting
         Button(
             onClick = {
                 selectedPrinter?.let { device ->
-                    isConnecting = true // ✅ Set loading state
+                    isConnecting = true
                     coroutineScope.launch {
                         val success = bluetoothHelper.connectToPrinter(device)
-                        isConnected = success // ✅ Update connection state
-                        isConnecting = false // ✅ Stop loading
+                        isConnecting = false
+                        if (!success) selectedPrinter = null
                     }
                 }
             },
-            enabled = selectedPrinter != null && !isConnecting, // ✅ Disable when connecting
+            enabled = selectedPrinter != null && !isConnecting,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(backgroundColor = if (selectedPrinter != null) Color(0xFFFFEB3B) else Color.Gray),
             shape = RoundedCornerShape(12.dp)
         ) {
             if (isConnecting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = Color.Black
-                )
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
             } else {
                 Text("Connect to Printer", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
             }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Button(
+            onClick = { bluetoothHelper.disconnectPrinter() },
+            enabled = isConnected,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(backgroundColor = if (isConnected) Color.Red else Color.Gray),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Disconnect", color = Color.White, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
         }
     }
 }

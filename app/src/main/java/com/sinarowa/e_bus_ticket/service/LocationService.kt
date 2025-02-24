@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.service
 
 import android.Manifest
@@ -37,9 +38,11 @@ class LocationService : Service() {
         startTrackingLocation()
     }
 
-    /**
+    */
+/**
      * ✅ Creates a foreground notification
-     */
+     *//*
+
     private fun startForegroundService() {
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Tracking Location")
@@ -51,9 +54,11 @@ class LocationService : Service() {
         startForeground(1, notification)
     }
 
-    /**
+    */
+/**
      * ✅ Creates a notification channel (for Android 8+)
-     */
+     *//*
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -66,9 +71,11 @@ class LocationService : Service() {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Starts tracking location updates every 10 seconds
-     */
+     *//*
+
     @SuppressLint("MissingPermission")
     private fun startTrackingLocation() {
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000L)
@@ -103,9 +110,11 @@ class LocationService : Service() {
 
 
 
-    /**
+    */
+/**
      * ✅ Checks location permissions (including background for Android 10+)
-     */
+     *//*
+
     private fun checkPermissions(): Boolean {
         val hasFineLocation = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         val hasCoarseLocation = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -119,9 +128,11 @@ class LocationService : Service() {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Stops tracking location when the service is destroyed
-     */
+     *//*
+
     override fun onDestroy() {
         super.onDestroy()
         fusedLocationClient.removeLocationUpdates(locationCallback)
@@ -136,3 +147,4 @@ class LocationService : Service() {
         private const val CHANNEL_ID = "location_tracking_channel"
     }
 }
+*/

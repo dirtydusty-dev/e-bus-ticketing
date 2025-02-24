@@ -1,6 +1,7 @@
 package com.sinarowa.e_bus_ticket
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -22,61 +23,48 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.sinarowa.e_bus_ticket.data.repository.LocationRepository
 import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
 import dagger.hilt.android.AndroidEntryPoint
 import com.sinarowa.e_bus_ticket.ui.screens.*
-import com.sinarowa.e_bus_ticket.ui.viewmodel.LocationViewModel
+//import com.sinarowa.e_bus_ticket.ui.viewmodel.LocationViewModel
 import com.sinarowa.e_bus_ticket.viewmodel.*
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    private val locationViewModel: LocationViewModel by viewModels()
-    private val REQUEST_LOCATION_PERMISSION = 2001
-    private val REQUEST_BACKGROUND_LOCATION_PERMISSION = 2002
-    private val REQUEST_BLUETOOTH_PERMISSION = 1001
 
-    private val LOCATION_PERMISSIONS = arrayOf(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION
-    )
+    @Inject
+    lateinit var locationRepository: LocationRepository
 
-    private val BACKGROUND_LOCATION_PERMISSION = arrayOf(
-        Manifest.permission.ACCESS_BACKGROUND_LOCATION
-    )
+    private val REQUEST_CODE = 1001
 
-    private val BLUETOOTH_PERMISSIONS = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        arrayOf(
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        )
-    } else {
-        arrayOf(
-            Manifest.permission.BLUETOOTH,
-            Manifest.permission.BLUETOOTH_ADMIN,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        )
+    private val ALL_PERMISSIONS by lazy {
+        mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                addAll(
+                    listOf(
+                        Manifest.permission.BLUETOOTH_CONNECT,
+                        Manifest.permission.BLUETOOTH_SCAN
+                    )
+                )
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }.toTypedArray()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅ Request foreground location permissions
-        if (!hasLocationPermissions()) {
-            requestLocationPermissions()
-        } else {
-            locationViewModel.startLocationTracking()
-        }
-
-        // ✅ Request background location permission (Android 10+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasBackgroundLocationPermission()) {
-            requestBackgroundLocationPermission()
-        }
-
-        if (!hasBluetoothPermissions()) {
-            requestBluetoothPermissions()
-        }
+        // ✅ Request all necessary permissions at startup
+        requestAllPermissions()
 
         setContent {
             val navController = rememberNavController()
@@ -87,8 +75,8 @@ class MainActivity : ComponentActivity() {
 
             NavHost(navController, startDestination = "home") {
                 composable("home") { HomeScreen(tripViewModel, navController) }
-                composable("salesreports") { TripSalesScreen(tripViewModel.tripSales.collectAsState().value, this@MainActivity) }
-                composable("createTrip") { CreateTripScreen(tripViewModel, navController) }
+                //composable("salesreports") { TripSalesScreen(tripViewModel.tripSales.collectAsState().value, this@MainActivity) }
+                composable("createTrip") { CreateTripScreen(tripViewModel, navController, locationRepository) }
 
                 composable("bluetoothScreen") {
                     BluetoothDevicesScreen(bluetoothHelper, this@MainActivity) // ✅ Pass Bluetooth Helper & Activity
@@ -113,7 +101,7 @@ class MainActivity : ComponentActivity() {
                         tripViewModel.loadTripById(tripId)
                     }
                     val trip by tripViewModel.selectedTrip.collectAsState()
-                    trip?.let { TripDashboardScreen(it, navController, ticketViewModel, tripViewModel) }
+                    trip?.let { TripDashboardScreen(it, navController, ticketViewModel, tripViewModel,locationRepository) }
                 }
                 composable("expenses/{tripId}") { backStackEntry ->
                     val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
@@ -127,105 +115,42 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        locationViewModel.stopLocationTracking()
+    /** ✅ Request all required permissions */
+    private fun requestAllPermissions() {
+        if (!hasAllPermissions()) {
+            ActivityCompat.requestPermissions(this, ALL_PERMISSIONS, REQUEST_CODE)
+        }
     }
 
-    /** ✅ Check if location permissions are granted */
-    private fun hasLocationPermissions(): Boolean {
-        return LOCATION_PERMISSIONS.all {
+    /** ✅ Check if all required permissions are granted */
+    private fun hasAllPermissions(): Boolean {
+        return ALL_PERMISSIONS.all {
             ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
         }
     }
 
-    /** ✅ Check if background location permission is granted (Android 10+) */
-    private fun hasBackgroundLocationPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            hasLocationPermissions() && // ✅ Ensure foreground location is granted first!
-                    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
-    }
-
-
-    /** ✅ Request foreground location permissions */
-    private fun requestLocationPermissions() {
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
-            // ✅ Show an explanation & request permission
-            Toast.makeText(this, "Location permission is needed for tracking.", Toast.LENGTH_LONG).show()
-        }
-
-        ActivityCompat.requestPermissions(this, LOCATION_PERMISSIONS, REQUEST_LOCATION_PERMISSION)
-    }
-
-    /** ✅ Request background location permission */
-    private fun requestBackgroundLocationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // ✅ Delay the request slightly to avoid triggering immediately
-            window.decorView.postDelayed({
-                if (!hasBackgroundLocationPermission()) {
-                    ActivityCompat.requestPermissions(this, BACKGROUND_LOCATION_PERMISSION, REQUEST_BACKGROUND_LOCATION_PERMISSION)
-                }
-            }, 2000) // ✅ 2 seconds delay
-        }
-    }
-
-
-    /** ✅ Check if Bluetooth permissions are granted */
-    private fun hasBluetoothPermissions(): Boolean {
-        return BLUETOOTH_PERMISSIONS.all {
-            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
-        }
-    }
-
-    /** ✅ Request Bluetooth permissions */
-    private fun requestBluetoothPermissions() {
-        if (shouldShowRequestPermissionRationale(BLUETOOTH_PERMISSIONS[0])) {
-            Toast.makeText(this, "Bluetooth permission is required for printing tickets.", Toast.LENGTH_LONG).show()
-        }
-        ActivityCompat.requestPermissions(this, BLUETOOTH_PERMISSIONS, REQUEST_BLUETOOTH_PERMISSION)
-    }
-
-    /** ✅ Handle permission request results */
+    /** ✅ Handle permission results */
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        when (requestCode) {
-            REQUEST_LOCATION_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                    locationViewModel.startLocationTracking()
+        if (requestCode == REQUEST_CODE) {
+            val deniedPermissions = permissions.zip(grantResults.toList())
+                .filter { it.second != PackageManager.PERMISSION_GRANTED }
+                .map { it.first }
 
-                    // ✅ Now, request background location **AFTER** foreground location is granted!
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !hasBackgroundLocationPermission()) {
-                        requestBackgroundLocationPermission()
-                    }
-                } else {
-                    // ✅ Redirect to settings only if the user denied twice
-                    if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
-                        showSettingsRedirectDialog("Location permission is required to track your trips.")
-                    }
-                }
-            }
-
-            REQUEST_BACKGROUND_LOCATION_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                    Log.d("MainActivity", "✅ Background location permission granted")
-                } else {
-                    // ✅ Redirect to settings **only if the user denied twice**
-                    if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-                        showSettingsRedirectDialog("Background location permission is required for trip tracking.")
-                    }
-                }
+            if (deniedPermissions.isNotEmpty()) {
+                Log.w("PERMISSIONS", "⚠️ The following permissions were denied: $deniedPermissions")
+                showSettingsRedirectDialog("All permissions are required for full app functionality.")
+            } else {
+                Log.d("PERMISSIONS", "✅ All permissions granted!")
             }
         }
     }
 
-
+    /** ✅ Show dialog to guide user to settings if permissions are denied */
     private fun showSettingsRedirectDialog(message: String) {
-        val builder = android.app.AlertDialog.Builder(this)
-        builder.setTitle("Permission Required")
+        AlertDialog.Builder(this)
+            .setTitle("Permission Required")
             .setMessage("$message\n\nPlease enable it in App Settings.")
             .setPositiveButton("Go to Settings") { _, _ ->
                 val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -233,19 +158,7 @@ class MainActivity : ComponentActivity() {
                 }
                 startActivity(intent)
             }
-            .setNegativeButton("Cancel") { dialog, _ ->
-                dialog.dismiss()
-            }
+            .setNegativeButton("Cancel", null)
             .show()
-    }
-
-
-
-    /** ✅ Open App Settings if permissions are denied */
-    private fun openAppSettings() {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", packageName, null)
-        }
-        startActivity(intent)
     }
 }

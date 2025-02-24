@@ -21,6 +21,9 @@ import com.sinarowa.e_bus_ticket.R
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -33,6 +36,84 @@ class BluetoothPrinterHelper(private val context: Context) {
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private var bluetoothSocket: BluetoothSocket? = null
     private var outputStream: OutputStream? = null
+
+
+    private val _isConnected = MutableStateFlow(false)
+    val isConnected = _isConnected.asStateFlow()
+
+    private val _pairedDevices = MutableStateFlow<List<BluetoothDevice>>(emptyList())
+    val pairedDevices = _pairedDevices.asStateFlow()
+
+    fun updateConnectionStatus(status: Boolean) {
+        _isConnected.value = status
+    }
+
+    fun updatePairedDevices() {
+        _pairedDevices.value = getPairedPrinters()
+    }
+
+    suspend fun connectToPrinter(device: BluetoothDevice): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (!hasBluetoothPermissions()) {
+                    Log.e("BluetoothPrinter", "❌ Cannot connect: Missing Bluetooth permissions!")
+                    return@withContext false
+                }
+
+                // 🛑 Stop discovery before connecting
+                if (bluetoothAdapter?.isDiscovering == true) {
+                    bluetoothAdapter.cancelDiscovery()
+                }
+
+                // 🔄 Ensure previous connection is properly closed
+                bluetoothSocket?.close()
+
+                val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+                bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
+
+                // 🚀 **Retry logic (max 3 attempts)**
+                repeat(3) { attempt ->
+                    try {
+                        Log.d("BluetoothPrinter", "🔄 Attempt ${attempt + 1} to connect...")
+                        bluetoothSocket?.connect()
+                        outputStream = bluetoothSocket?.outputStream
+
+                        Log.d("BluetoothPrinter", "✅ Connected to printer: ${device.name}")
+                        updateConnectionStatus(true)
+                        return@withContext true
+                    } catch (e: IOException) {
+                        Log.e("BluetoothPrinter", "⚠️ Connection failed on attempt ${attempt + 1}: ${e.message}")
+
+                        if (attempt == 2) {
+                            updateConnectionStatus(false)
+                            return@withContext false
+                        }
+
+                        // 🕒 Wait a bit before retrying
+                        delay(2000)
+                    }
+                }
+
+                return@withContext false
+            } catch (e: SecurityException) {
+                Log.e("BluetoothPrinter", "❌ SecurityException: ${e.message}")
+                updateConnectionStatus(false)
+                return@withContext false
+            }
+        }
+    }
+
+
+    fun disconnectPrinter() {
+        try {
+            outputStream?.close()
+            bluetoothSocket?.close()
+            bluetoothSocket = null
+            updateConnectionStatus(false)
+        } catch (e: IOException) {
+            Log.e("BluetoothPrinter", "❌ Error closing connection: ${e.message}")
+        }
+    }
 
     /**
      * ✅ Checks if the app has Bluetooth permissions
@@ -106,36 +187,7 @@ class BluetoothPrinterHelper(private val context: Context) {
     /**
      * ✅ Connects to a Bluetooth printer in a coroutine (Non-Blocking)
      */
-    suspend fun connectToPrinter(device: BluetoothDevice): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                if (!hasBluetoothPermissions()) {
-                    Log.e("BluetoothPrinter", "❌ Cannot connect: Missing Bluetooth permissions!")
-                    return@withContext false
-                }
 
-                if (bluetoothAdapter?.isDiscovering == true) {
-                    bluetoothAdapter.cancelDiscovery()
-                }
-
-                val uuid: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-
-                bluetoothSocket?.close() // Ensure no existing connection
-                bluetoothSocket = device.createRfcommSocketToServiceRecord(uuid)
-                bluetoothSocket?.connect()
-                outputStream = bluetoothSocket?.outputStream
-
-                Log.d("BluetoothPrinter", "✅ Connected to printer: ${device.name}")
-                return@withContext true
-            } catch (e: SecurityException) {
-                Log.e("BluetoothPrinter", "❌ SecurityException: ${e.message}")
-                return@withContext false
-            } catch (e: IOException) {
-                Log.e("BluetoothPrinter", "❌ Connection failed: ${e.message}")
-                return@withContext false
-            }
-        }
-    }
 
     /**
      * ✅ Sends text to the printer

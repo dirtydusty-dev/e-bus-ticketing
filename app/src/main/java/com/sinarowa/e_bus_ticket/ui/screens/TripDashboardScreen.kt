@@ -5,13 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.BusAlert
-import androidx.compose.material.icons.filled.EventSeat
-import androidx.compose.material.icons.filled.Luggage
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
+import com.sinarowa.e_bus_ticket.data.repository.LocationRepository
 import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import kotlinx.coroutines.delay
@@ -30,15 +25,31 @@ fun TripDashboardScreen(
     trip: TripDetails,
     navController: NavController,
     ticketViewModel: TicketViewModel,
-    tripViewModel: TripViewModel
+    tripViewModel: TripViewModel,
+    locationRepository: LocationRepository
 ) {
-    val ticketCount by ticketViewModel.ticketCount.collectAsState()
+    val ticketCount by ticketViewModel.ticketCountSeat.collectAsState()
+    val luggageCount by ticketViewModel.luggageCount.collectAsState()
+
+    LaunchedEffect(trip.tripId) {
+        ticketViewModel.setTripId(trip.tripId)
+        tripViewModel.loadTripById(trip.tripId)
+    }
+
+
+    LaunchedEffect(luggageCount) {
+        println("Dashboard Luggage Count Updated: $luggageCount")
+    }
+
+    LaunchedEffect(ticketCount) {
+        println("Dashboard Ticket Count Updated: $ticketCount")
+    }
+
     var showEndTripDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-
     var endTripCountdown by remember { mutableStateOf(3) }
     var confirmationText by remember { mutableStateOf("") }
-    var isCountingDown by remember { mutableStateOf(false) } // ✅ Track countdown state
+    var isCountingDown by remember { mutableStateOf(false) }
 
     LaunchedEffect(showEndTripDialog) {
         if (showEndTripDialog) {
@@ -48,31 +59,16 @@ fun TripDashboardScreen(
                 delay(1000L)
                 endTripCountdown = i - 1
             }
-            isCountingDown = false // ✅ Stop countdown
+            isCountingDown = false
         }
     }
 
     val isConfirmEnabled = confirmationText.uppercase() == "END" && endTripCountdown == 0
 
-    OutlinedTextField(
-        value = confirmationText,
-        onValueChange = { confirmationText = it },
-        label = { Text("Type 'END' to confirm") },
-        modifier = Modifier.fillMaxWidth()
-    )
-
-
-
-
-
-    LaunchedEffect(trip.tripId) {
-        ticketViewModel.updateTicketCount(trip.tripId)  // ✅ Fetch ticket count dynamically
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White) // Modern White Background
+            .background(Color.White)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -81,7 +77,7 @@ fun TripDashboardScreen(
             modifier = Modifier.fillMaxWidth(),
             elevation = 4.dp,
             shape = RoundedCornerShape(12.dp),
-            backgroundColor = Color(0xFF87CEEB) // Sky Blue
+            backgroundColor = Color(0xFF87CEEB)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -91,7 +87,8 @@ fun TripDashboardScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Trip: ${trip.routeName}", style = MaterialTheme.typography.h6, color = Color.White)
                 Text("Bus: ${trip.busName}", style = MaterialTheme.typography.body1, color = Color.White)
-                Text("Tickets Sold: $ticketCount", style = MaterialTheme.typography.body1, color = Color.White)
+                Text("Passenger Tickets Sold: $ticketCount", style = MaterialTheme.typography.body1, color = Color.White)
+                Text("Luggage Tickets Sold: $luggageCount", style = MaterialTheme.typography.body1, color = Color.White)
             }
         }
 
@@ -99,43 +96,40 @@ fun TripDashboardScreen(
 
         DashboardButton(
             text = "Passenger Tickets",
-            color = Color(0xFFFFEB3B), // Yellow
+            color = Color(0xFFFFEB3B),
             icon = Icons.Filled.Person,
             onClick = { navController.navigate("passengerTickets/${trip.tripId}") }
         )
 
-        // 🎒 Luggage Tickets Button
         DashboardButton(
             text = "Luggage Tickets",
-            color = Color(0xFFFFEB3B), // Yellow
+            color = Color(0xFFFFEB3B),
             icon = Icons.Filled.Luggage,
             onClick = { navController.navigate("luggageTickets/${trip.tripId}") }
         )
 
-        // 📝 Log Expenses Button
         DashboardButton(
             text = "Log Expenses",
-            color = Color(0xFFFFEB3B), // Yellow
+            color = Color(0xFFFFEB3B),
             icon = Icons.Filled.AttachMoney,
             onClick = { navController.navigate("expenses/${trip.tripId}") }
         )
 
-        // 📊 View Reports Button
         DashboardButton(
             text = "View Reports",
-            color = Color(0xFF1565C0), // Blue
+            color = Color(0xFF1565C0),
             icon = Icons.Filled.BarChart,
             onClick = { navController.navigate("reports/${trip.tripId}") }
         )
 
-        // ❌ End Trip Button
         DashboardButton(
             text = "End Trip",
-            color = Color.Red, // Red for danger action
+            color = Color.Red,
             icon = Icons.Filled.Warning,
             onClick = { showEndTripDialog = true }
         )
     }
+
     if (showEndTripDialog) {
         AlertDialog(
             onDismissRequest = { showEndTripDialog = false },
@@ -163,12 +157,13 @@ fun TripDashboardScreen(
                             scope.launch {
                                 tripViewModel.endTrip(trip.tripId)
                                 showEndTripDialog = false
+                                locationRepository.stopTrackingLocation()
                                 navController.popBackStack()
                             }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(backgroundColor = if (isConfirmEnabled) Color.Red else Color.Gray),
-                    enabled = isConfirmEnabled // ✅ This now updates properly
+                    enabled = isConfirmEnabled
                 ) {
                     Text("Yes, End Trip", color = Color.White)
                 }
@@ -182,7 +177,6 @@ fun TripDashboardScreen(
                 }
             }
         )
-
     }
 }
 
@@ -190,7 +184,7 @@ fun TripDashboardScreen(
 fun DashboardButton(
     text: String,
     color: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector, // ✅ Added icon parameter
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit
 ) {
     Button(
@@ -209,4 +203,3 @@ fun DashboardButton(
         }
     }
 }
-

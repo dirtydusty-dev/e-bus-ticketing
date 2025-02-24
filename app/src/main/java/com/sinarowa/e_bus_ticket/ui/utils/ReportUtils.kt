@@ -1,9 +1,150 @@
 package com.sinarowa.e_bus_ticket.utils
 
+import android.content.Context
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
+import android.os.Environment
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 
 object ReportUtils {
+
+
+    fun generateA4TicketSalesReport(
+        context: Context,
+        companyName: String,
+        date: String,
+        tripId: String,
+        tripDuration: String,
+        ticketsSold: Int,
+        firstTicket: String,
+        lastTicket: String,
+        citySales: List<List<String>>, // City-Wise Breakdown
+        ticketTypes: List<List<String>>, // Ticket Type Breakdown
+        paymentSummary: List<List<String>>, // Payment Methods
+        tripSales: List<List<String>>, // Trip Revenue Breakdown
+        expenses: List<List<String>>, // Expense Breakdown
+        routeSales: List<List<String>>, // Route-Based Ticket Breakdown
+        totalSales: Double,
+        totalExpenses: Double
+    ) {
+        val document = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 Size
+        val page = document.startPage(pageInfo)
+        val canvas = page.canvas
+        val paint = Paint()
+        var yPos = 50f
+
+        fun drawTitle(title: String) {
+            paint.textSize = 16f
+            paint.isFakeBoldText = true
+            canvas.drawText(title, 50f, yPos, paint)
+            yPos += 20f
+            paint.textSize = 12f
+            paint.isFakeBoldText = false
+        }
+
+        fun drawTable(headers: List<String>, rows: List<List<String>>) {
+            canvas.drawText(headers.joinToString("   "), 50f, yPos, paint)
+            yPos += 20f
+            for (row in rows) {
+                canvas.drawText(row.joinToString("   "), 50f, yPos, paint)
+                yPos += 20f
+            }
+            yPos += 20f
+        }
+
+        // 🏁 Report Header
+        drawTitle(companyName)
+        paint.textSize = 14f
+        canvas.drawText("Daily Ticket Sales Report", 50f, yPos, paint)
+        yPos += 20f
+        canvas.drawText("Date: $date", 50f, yPos, paint)
+        canvas.drawText("Trip ID: $tripId", 400f, yPos, paint)
+        yPos += 30f
+
+        // 🚍 Trip Summary
+        drawTitle("🚍 TRIP SUMMARY")
+        drawTable(
+            listOf("Tickets Sold", "First Ticket", "Last Ticket", "Trip Duration"),
+            listOf(listOf("$ticketsSold", firstTicket, lastTicket, tripDuration))
+        )
+
+        // 📍 City-Wise Sales
+        drawTitle("📍 CITY-WISE TICKET SALES BREAKDOWN")
+        drawTable(
+            listOf("City", "Adult", "Child", "$1 Short", "$2 Short", "Total Tickets", "Revenue"),
+            citySales
+        )
+
+        // 🎟️ Ticket Type Breakdown
+        drawTitle("🎟️ TICKET TYPE BREAKDOWN")
+        drawTable(
+            listOf("Ticket Type", "Total Tickets", "Total Revenue"),
+            ticketTypes
+        )
+
+        // 💳 Payment Summary
+        drawTitle("💳 PAYMENT SUMMARY")
+        drawTable(
+            listOf("Method", "Qty", "Total ($)"),
+            paymentSummary
+        )
+
+        // 💰 Trip Sales Breakdown
+        drawTitle("💰 TRIP SALES BREAKDOWN")
+        drawTable(
+            listOf("Trip", "Revenue ($)"),
+            tripSales
+        )
+
+        // 📑 Expenses Breakdown
+        drawTitle("📑 EXPENSES BREAKDOWN")
+        drawTable(
+            listOf("Expense Type", "Amount ($)"),
+            expenses
+        )
+
+        // 🚍 Route-Based Ticket Sales Breakdown
+        drawTitle("🚍 ROUTE-BASED TICKET SALES BREAKDOWN")
+        drawTable(
+            listOf("From", "To", "Adult", "Child", "$1 Short", "$2 Short", "Total Tickets", "Revenue"),
+            routeSales
+        )
+
+        // 💵 Final Summary
+        drawTitle("💵 FINAL SUMMARY")
+        canvas.drawText("💰 Total Sales: $${"%.2f".format(totalSales)}", 50f, yPos, paint)
+        yPos += 20f
+        canvas.drawText("🛠 Total Expenses: $${"%.2f".format(totalExpenses)}", 50f, yPos, paint)
+        yPos += 20f
+        canvas.drawText("📈 Net Profit: $${"%.2f".format(totalSales - totalExpenses)}", 50f, yPos, paint)
+
+        document.finishPage(page)
+
+        // 📂 Save PDF
+        val directory = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            "TicketReports"
+        )
+        if (!directory.exists()) directory.mkdirs()
+
+        val file = File(directory, "Ticket_Report_${System.currentTimeMillis()}.pdf")
+        try {
+            val fos = FileOutputStream(file)
+            document.writeTo(fos)
+            document.close()
+            fos.close()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+    }
+
+
+
 
 
     val printerWidth = 32 // Adjust if your printer supports 42 chars
@@ -154,6 +295,46 @@ object ReportUtils {
     }
 
 
+    fun generateDestinationDetails(routeBreakdown: List<TripViewModel.RouteBreakdown>): String {
+        return buildString {
+            append(" DESTINATION DETAILS\n")
+            append(" FROM-TO        A  C  L  $1  $2  AMOUNT\n")
+
+            routeBreakdown.forEach { route ->
+                val totalAdults = route.ticketBreakdown.find { it.type == "Adult" }?.count ?: 0
+                val totalChildren = route.ticketBreakdown.find { it.type == "Child" }?.count ?: 0
+                val totalLuggage = route.ticketBreakdown.find { it.type == "Luggage" }?.count ?: 0
+                val dollarShort = route.ticketBreakdown.find { it.type == "$1 Short" }?.count ?: 0
+                val twoDollarShort = route.ticketBreakdown.find { it.type == "$2 Short" }?.count ?: 0
+                val totalAmount = route.ticketBreakdown.sumOf { it.amount }
+
+                // Format each route breakdown entry
+                append("${route.fromCity.take(5)}-${route.toCity.take(5)}   ")
+                append("$totalAdults  $totalChildren  $totalLuggage  $dollarShort  $twoDollarShort  ")
+                append("${"%.2f".format(totalAmount)}\n")
+            }
+
+            append("\n A-Adult  C-Child  L-Luggage  $1-\$1 Short $2-\$2 Short \n")
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     fun generateTicketSalesReport(
         companyName: String,
         date: String,
@@ -232,6 +413,9 @@ object ReportUtils {
     }
 
 
+
+
+
     fun generateReportHeader(
         companyName: String,
         reportTitle: String,
@@ -302,91 +486,9 @@ object ReportUtils {
     /**
      * ✅ Generates the DESTINATION DETAILS section
      */
-    fun generateDestinationDetails(routeBreakdown: List<TripViewModel.RouteBreakdown>): String {
-        return buildString {
-            append(" DESTINATION DETAILS\n")
-            append(" FROM-TO        A  C  L  P  AMOUNT\n")
-
-            routeBreakdown.forEach { route ->
-                val totalAdults = route.ticketBreakdown.find { it.type == "Adult" }?.count ?: 0
-                val totalChildren = route.ticketBreakdown.find { it.type == "Child" }?.count ?: 0
-                val totalLuggage = route.ticketBreakdown.find { it.type == "Luggage" }?.count ?: 0
-                val totalPasses = route.ticketBreakdown.find { it.type == "Pass" }?.count ?: 0
-                val totalAmount = route.ticketBreakdown.sumOf { it.amount }
-
-                // Format each route breakdown entry
-                append("${route.fromCity.take(5)}-${route.toCity.take(5)}   ")
-                append("$totalAdults  $totalChildren  $totalLuggage  $totalPasses  ")
-                append("${"%.2f".format(totalAmount)}\n")
-            }
-
-            append("\n A-Adult  C-Child  L-Luggage  P-Pass\n")
-        }
-    }
-
-    fun generateTicketDetails(tripSales: List<TripViewModel.TripSale>): String {
-        val lastTickets = tripSales
-            .flatMap { sale ->
-                sale.routeBreakdown.flatMap { route ->
-                    route.ticketBreakdown.map { ticket ->
-                        TripViewModel.TicketBreakdown(
-                            type = ticket.type,
-                            count = ticket.count,
-                            amount = ticket.amount
-                        )
-                    }
-                }
-            }
-            .takeLast(20) // ✅ Get only the last 20 tickets
-
-        return buildString {
-            append(" LAST 20 TICKETS\n")
-            append(" FROM-TO      TYPE      AMOUNT\n")
-
-            lastTickets.forEach { ticket ->
-                append("${ticket.type.padEnd(10)}  ${"%.2f".format(ticket.amount)}\n")
-            }
-
-            append("\n")
-        }
-    }
 
 
-    fun generatePaymentDetails(tripSales: List<TripViewModel.TripSale>): String {
-        val paymentMethods = mapOf(
-            "Cash" to tripSales.sumOf { it.totalSales * 0.6 }, // Example: Assume 60% cash
-            "Card" to tripSales.sumOf { it.totalSales * 0.3 }, // Example: Assume 30% card
-            "Mobile" to tripSales.sumOf { it.totalSales * 0.1 } // Example: Assume 10% mobile
-        )
 
-        return buildString {
-            append(" PAYMENT DETAILS\n")
-            append(" METHOD        AMOUNT\n")
-
-            paymentMethods.forEach { (method, amount) ->
-                append("${method.padEnd(10)}  ${"%.2f".format(amount)}\n")
-            }
-
-            append("\n")
-        }
-    }
-
-    fun generateExpenseDetails(tripSales: List<TripViewModel.TripSale>): String {
-        val expenseSummary = tripSales.flatMap { it.expenseBreakdown }
-            .groupBy { it.type }
-            .mapValues { entry -> entry.value.sumOf { it.totalAmount } }
-
-        return buildString {
-            append(" EXPENSE DETAILS\n")
-            append(" TYPE          AMOUNT\n")
-
-            expenseSummary.forEach { (type, amount) ->
-                append("${type.padEnd(10)}  ${"%.2f".format(amount)}\n")
-            }
-
-            append("\n")
-        }
-    }
 
 
 

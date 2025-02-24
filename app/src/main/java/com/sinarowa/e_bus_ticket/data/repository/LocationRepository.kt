@@ -3,6 +3,7 @@ package com.sinarowa.e_bus_ticket.data.repository
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.location.Location
@@ -13,9 +14,13 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
 import com.sinarowa.e_bus_ticket.data.local.dao.LocationDao
 import com.sinarowa.e_bus_ticket.data.local.dao.RouteDao
+import com.sinarowa.e_bus_ticket.data.local.dao.TicketDao
 import com.sinarowa.e_bus_ticket.data.local.dao.TripDetailsDao
+import com.sinarowa.e_bus_ticket.services.LocationTrackingService
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -24,7 +29,8 @@ class LocationRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val tripDao: TripDetailsDao,
     private val routeDao: RouteDao,
-    private val locationDao: LocationDao
+    private val locationDao: LocationDao,
+    private val ticketDao: TicketDao
 ) {
     private val fusedLocationClient: FusedLocationProviderClient by lazy {
         LocationServices.getFusedLocationProviderClient(context)
@@ -40,14 +46,7 @@ class LocationRepository @Inject constructor(
         fastestInterval = 5000
     }
 
-    private val locationCallback = object : LocationCallback() {
-        override fun onLocationResult(locationResult: LocationResult) {
-            locationResult.locations.lastOrNull()?.let { location ->
-                Log.d("LOCATION_PROCESS", "✅ Background Location: ${location.latitude}, ${location.longitude}")
-                cacheLocation(location)  // ✅ Auto-cache location in the background
-            }
-        }
-    }
+
 
     /** ✅ Checks if location permissions are granted */
     private fun hasLocationPermissions(): Boolean {
@@ -58,30 +57,47 @@ class LocationRepository @Inject constructor(
     /**
      * ✅ Starts tracking location in the background
      */
-    @SuppressLint("MissingPermission")
-    fun startTrackingLocation() {
+    fun startTrackingLocation(tripId: String) {
         if (!hasLocationPermissions()) {
-            Log.w("LOCATION_PROCESS", "⚠️ Location permissions NOT granted. Cannot start tracking.")
+            Log.w("LOCATION_SERVICE", "⚠️ Location permissions missing, cannot start tracking.")
             return
         }
 
-        try {
-            fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                Looper.getMainLooper()
-            )
-            Log.d("LOCATION_PROCESS", "✅ Started background location tracking.")
-        } catch (e: SecurityException) {
-            Log.e("LOCATION_PROCESS", "❌ SecurityException: ${e.message}")
+        if (!isServiceRunning()) {
+            val serviceIntent = Intent(context, LocationTrackingService::class.java).apply {
+                putExtra("TRIP_ID", tripId) // ✅ Pass tripId for tracking
+            }
+            ContextCompat.startForegroundService(context, serviceIntent)
+            Log.d("LOCATION_SERVICE", "✅ Foreground location service started for trip: $tripId")
+        } else {
+            Log.d("LOCATION_SERVICE", "ℹ️ Foreground service is already running.")
         }
     }
 
+
+
+
     /** ✅ Stops location tracking */
     fun stopTrackingLocation() {
-        fusedLocationClient.removeLocationUpdates(locationCallback)
-        Log.d("LOCATION_PROCESS", "✅ Stopped background location tracking.")
+        if (isServiceRunning()) {
+            val serviceIntent = Intent(context, LocationTrackingService::class.java)
+            context.stopService(serviceIntent)
+            Log.d("LOCATION_SERVICE", "✅ Foreground location service stopped.")
+        } else {
+            Log.d("LOCATION_SERVICE", "ℹ️ Foreground service was not running.")
+        }
     }
+
+
+
+    private fun isServiceRunning(): Boolean {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        return activityManager.getRunningServices(Integer.MAX_VALUE).any {
+            it.service.className == LocationTrackingService::class.java.name
+        }
+    }
+
+
 
     /** ✅ Caches location if movement is significant */
     fun cacheLocation(newLocation: Location) {
@@ -101,13 +117,37 @@ class LocationRepository @Inject constructor(
         } else {
             Log.d("LOCATION_PROCESS", "ℹ️ Location not significantly different, but timestamp updated.")
         }
+
     }
 
 
+    fun updateDepartedCustomers(location: Location, tripId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            //val tripId = sharedPreferences.getString("current_trip_id", null) ?: return@launch
+
+            // ✅ Get the closest stop based on the new location
+            val closestStop = getClosestStop(location.latitude, location.longitude, tripId)
+
+            if (closestStop != "Unknown") {
+                Log.d("LOCATION_TRACKING", "🏁 Closest stop: $closestStop, checking tickets...")
+
+                // ✅ Update ticket status where destination (`toStop`) matches the closest stop
+                val updatedCount = ticketDao.updateDepartedTickets(tripId, closestStop)
+
+                Log.d("LOCATION_TRACKING", "✅ Updated $updatedCount tickets as 'Departed' for stop: $closestStop")
+            }
+        }
+    }
+
+
+
+
+
+
     /** ✅ Determines if location change is significant (500m threshold) */
-    private fun isSignificantChange(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Boolean {
+    fun isSignificantChange(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Boolean {
         val distance = haversineDistance(lat1, lon1, lat2, lon2)
-        return distance > 0.5 // ✅ Adjusted for better accuracy
+        return distance > 0.1 // ✅ Adjusted for better accuracy
     }
 
     /** ✅ Haversine formula for accurate distance calculation */
