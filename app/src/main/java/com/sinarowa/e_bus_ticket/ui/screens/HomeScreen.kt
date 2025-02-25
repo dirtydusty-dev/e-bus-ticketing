@@ -1,5 +1,11 @@
 package com.sinarowa.e_bus_ticket.ui.screens
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,6 +32,7 @@ fun HomeScreen(tripViewModel: TripViewModel, navController: NavController) {
     val trips by tripViewModel.trips.collectAsState()
     var isLoading by remember { mutableStateOf(true) }
     var menuExpanded by remember { mutableStateOf(false) }
+
 
     LaunchedEffect(trips) {
         if (isLoading && trips.isNotEmpty()) {
@@ -138,6 +145,16 @@ fun EmptyState(navController: NavController) {
 
 @Composable
 fun TripItem(trip: TripDetails, onClick: (String) -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition()
+    val blinkAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -145,24 +162,59 @@ fun TripItem(trip: TripDetails, onClick: (String) -> Unit) {
             .clickable { onClick(trip.tripId) },
         backgroundColor = Color.White
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.LocationOn, contentDescription = "Route", tint = Color(0xFF1565C0))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Trip: ${trip.routeName}",
-                    style = MaterialTheme.typography.h6,
-                    color = Color(0xFF1565C0)
-                )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.LocationOn, contentDescription = "Route", tint = Color(0xFF1565C0))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Trip: ${trip.routeName}",
+                        style = MaterialTheme.typography.h6,
+                        color = Color(0xFF1565C0)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.DirectionsBus, contentDescription = "Bus", tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            "Bus: ${trip.busName}",
+                            style = MaterialTheme.typography.body2,
+                            color = Color.DarkGray
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Start: ${trip.creationTime}", // Small italic start time
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            color = Color.Gray,
+                            fontSize = MaterialTheme.typography.caption.fontSize // Very small text
+                        )
+                    }
+                }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.DirectionsBus, contentDescription = "Bus", tint = Color.Gray)
-                Spacer(modifier = Modifier.width(8.dp))
+
+            // ✅ Blinking Green Dot and "Active" label
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(Color(0xFF00C853).copy(alpha = blinkAlpha), shape = RoundedCornerShape(50)) // Blinking Green Dot
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Bus: ${trip.busName}",
-                    style = MaterialTheme.typography.body2,
-                    color = Color.DarkGray
+                    text = "Active",
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    color = Color(0xFF00C853),
+                    style = MaterialTheme.typography.body2
                 )
             }
         }

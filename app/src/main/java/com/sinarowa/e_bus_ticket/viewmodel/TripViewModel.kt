@@ -54,6 +54,10 @@ class TripViewModel @Inject constructor(
     private val _selectedTrip = MutableStateFlow<TripDetails?>(null)
     val selectedTrip: StateFlow<TripDetails?> = _selectedTrip.asStateFlow()
 
+    private val _selectedTripId = MutableStateFlow<String?>(null) // ✅ Proper declaration
+    val selectedTripId: StateFlow<String?> = _selectedTripId.asStateFlow() // ✅ Read-only for UI
+
+
     private val _tripReport = MutableStateFlow<TripSale?>(null)
     val tripReport: StateFlow<TripSale?> = _tripReport.asStateFlow()
 
@@ -78,6 +82,13 @@ class TripViewModel @Inject constructor(
 
     suspend fun endTrip(tripId: String) {
         tripRepository.endTripById(tripId, 1, TimeUtils.getFormattedTimestamp())
+
+        withContext(Dispatchers.Main) {
+            _activeTrip.value = null  // ✅ Reset active trip
+            _selectedTrip.value = null  // ✅ Reset selected trip
+            _selectedTripId.value = null
+            _tripReport.value = null  // ✅ Clear report data
+        }
     }
 
     fun loadRoutes() {
@@ -228,22 +239,35 @@ class TripViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val activeTrip = tripDao.getActiveTrip()
+
+                // ✅ If there's an active trip, don't create a new one
+                if (activeTrip != null) {
+                    Log.e("TripViewModel", "Cannot create a new trip while one is active")
+                    return@launch
+                }
+
+                // ✅ Clear old trip data before starting a new one
+                withContext(Dispatchers.Main) {
+                    _activeTrip.value = null
+                    _selectedTrip.value = null
+                    _selectedTripId.value = null
+                    _tripReport.value = null
+                }
                 val tripId = generateTripId(route.name)
 
-                if (activeTrip == null) {
-                    val newTrip = TripDetails(
+                val newTrip = TripDetails(
                         tripId = tripId,
                         routeId = route.routeId,
                         routeName = route.name,
                         busId = bus.busId,
                         busName = bus.busName
-                    )
+                )
                     tripDao.insertTrip(newTrip)
                     _activeTrip.value = newTrip
+
+
                     locationRepository.startTrackingLocation(tripId)
-                } else {
-                    Log.e("TripViewModel", "Cannot create a new trip while one is active")
-                }
+
             } catch (e: Exception) {
                 Log.e("TripViewModel", "Error creating trip: ${e.message}")
             }

@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.location.*
 import com.sinarowa.e_bus_ticket.data.repository.LocationRepository
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.*
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -25,17 +26,18 @@ class LocationTrackingService : Service() {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationRequest: LocationRequest
     private lateinit var locationCallback: LocationCallback
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private var tripId: String? = null // ✅ Store tripId here
+    private var tripId: String? = null
 
     override fun onCreate() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        // ✅ Create Location Request
+        // ✅ Configure location request for high accuracy
         locationRequest = LocationRequest.create().apply {
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-            interval = 10000 // Update every 10 sec
+            interval = 10000 // Every 10 seconds
             fastestInterval = 5000
         }
 
@@ -45,16 +47,17 @@ class LocationTrackingService : Service() {
                     Log.d("FOREGROUND_SERVICE", "📌 Location Updated: ${location.latitude}, ${location.longitude}")
 
                     tripId?.let {
-                        locationRepository.cacheLocation(location)
-                        locationRepository.updateDepartedCustomers(location, it)
-                    } ?: Log.w("LOCATION_TRACKING", "⚠️ No active trip found, skipping ticket updates.")
+                        serviceScope.launch {
+                            processLocationUpdate(it, location)
+                        }
+                    } ?: Log.w("LOCATION_TRACKING", "⚠️ No active trip found, skipping updates.")
                 }
             }
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        tripId = intent?.getStringExtra("TRIP_ID") // ✅ Get tripId from Intent
+        tripId = intent?.getStringExtra("TRIP_ID")
 
         if (tripId == null) {
             Log.e("LOCATION_TRACKING", "❌ No tripId provided, stopping service.")
@@ -62,26 +65,31 @@ class LocationTrackingService : Service() {
             return START_NOT_STICKY
         }
 
-        startForegroundService() // ✅ Start foreground service properly
+        startForegroundService()
         return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    companion object {
-        private const val NOTIFICATION_ID = 1001 // ✅ Declare here
+    /**
+     * ✅ Processes location updates asynchronously.
+     */
+    private suspend fun processLocationUpdate(tripId: String, location: Location) {
+        val closestStop = locationRepository.getClosestStop(tripId)
+        Log.d("LOCATION_TRACKING", "🚏 Detected stop: $closestStop")
 
-        fun startService(context: Context, tripId: String) {
-            val intent = Intent(context, LocationTrackingService::class.java).apply {
-                putExtra("TRIP_ID", tripId) // ✅ Pass tripId
-            }
-            ContextCompat.startForegroundService(context, intent)
+        if (closestStop != "Unknown") {
+            locationRepository.updateDepartedTickets(tripId, closestStop)
         }
     }
 
+    /**
+     * ✅ Starts foreground location tracking with a notification.
+     */
     @Suppress("MissingPermission")
     private fun startForegroundService() {
         if (!hasLocationPermissions()) {
+            Log.e("LOCATION_TRACKING", "❌ Missing location permissions, stopping service.")
             stopSelf()
             return
         }
@@ -96,10 +104,16 @@ class LocationTrackingService : Service() {
         )
     }
 
+    /**
+     * ✅ Checks for location permissions before starting tracking.
+     */
     private fun hasLocationPermissions(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }
 
+    /**
+     * ✅ Creates the foreground service notification.
+     */
     private fun createNotification(): Notification {
         val channelId = "location_tracking"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -122,6 +136,29 @@ class LocationTrackingService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        serviceScope.cancel()
         Log.d("FOREGROUND_SERVICE", "❌ Location tracking stopped.")
+    }
+
+    companion object {
+        private const val NOTIFICATION_ID = 1001
+
+        /**
+         * ✅ Starts the location tracking service with a trip ID.
+         */
+        fun startService(context: Context, tripId: String) {
+            val intent = Intent(context, LocationTrackingService::class.java).apply {
+                putExtra("TRIP_ID", tripId)
+            }
+            ContextCompat.startForegroundService(context, intent)
+        }
+
+        /**
+         * ✅ Stops the tracking service.
+         */
+        fun stopService(context: Context) {
+            val intent = Intent(context, LocationTrackingService::class.java)
+            context.stopService(intent)
+        }
     }
 }

@@ -18,7 +18,8 @@ object DatabaseSeeder {
             val routes = listOf(
                 RouteEntity("1", "HRE-CWR", "Harare CBD", "Waterfalls", "Harare CBD, Causeway, Milton Park, Belvedere, Southerton, Westgate, Waterfalls"),
                 RouteEntity("2", "HRE-NNW", "The Avenues", "Belgravia", "The Avenues, Alexandra Park, Arcadia, Arlington, Greendale, Borrowdale, Mount Pleasant, Newlands, Avondale, Highlands, Hatcliffe, Belgravia"), // Route 3: East Route
-                RouteEntity("3", "HRE-ERT", "Harare CBD", "Epworth", "Harare CBD, Mbare, Highfield, Chitungwiza, Epworth")
+                RouteEntity("3", "HRE-ERT", "Harare CBD", "Epworth", "Harare CBD, Mbare, Highfield, Chitungwiza, Epworth"),
+                RouteEntity("4", "CWR-HRE", "Waterfalls", "Harare CBD", "Waterfalls, Westgate, Southerton, Belvedere, Milton Park, Causeway, Harare CBD") // Return Route
             )
             routeDao.insertRoutes(routes)
 
@@ -51,6 +52,33 @@ object DatabaseSeeder {
                 PriceEntity(fromCity = "Southerton", toCity = "Waterfalls", adultPrice = 2.0),
 
                 PriceEntity(fromCity = "Westgate", toCity = "Waterfalls", adultPrice = 1.0),
+
+
+                PriceEntity(fromCity = "Waterfalls", toCity = "Westgate", adultPrice = 1.0),
+                PriceEntity(fromCity = "Waterfalls", toCity = "Southerton", adultPrice = 2.0),
+                PriceEntity(fromCity = "Waterfalls", toCity = "Belvedere", adultPrice = 3.0),
+                PriceEntity(fromCity = "Waterfalls", toCity = "Milton Park", adultPrice = 4.0),
+                PriceEntity(fromCity = "Waterfalls", toCity = "Causeway", adultPrice = 5.0),
+                PriceEntity(fromCity = "Waterfalls", toCity = "Harare CBD", adultPrice = 6.0),
+                PriceEntity(fromCity = "Westgate", toCity = "Southerton", adultPrice = 1.0),
+                PriceEntity(fromCity = "Westgate", toCity = "Belvedere", adultPrice = 2.0),
+                PriceEntity(fromCity = "Westgate", toCity = "Milton Park", adultPrice = 3.0),
+                PriceEntity(fromCity = "Westgate", toCity = "Causeway", adultPrice = 4.0),
+                PriceEntity(fromCity = "Westgate", toCity = "Harare CBD", adultPrice = 5.0),
+
+                PriceEntity(fromCity = "Southerton", toCity = "Belvedere", adultPrice = 1.0),
+                PriceEntity(fromCity = "Southerton", toCity = "Milton Park", adultPrice = 2.0),
+                PriceEntity(fromCity = "Southerton", toCity = "Causeway", adultPrice = 3.0),
+                PriceEntity(fromCity = "Southerton", toCity = "Harare CBD", adultPrice = 4.0),
+
+                PriceEntity(fromCity = "Belvedere", toCity = "Milton Park", adultPrice = 1.0),
+                PriceEntity(fromCity = "Belvedere", toCity = "Causeway", adultPrice = 2.0),
+                PriceEntity(fromCity = "Belvedere", toCity = "Harare CBD", adultPrice = 3.0),
+
+                PriceEntity(fromCity = "Milton Park", toCity = "Causeway", adultPrice = 1.0),
+                PriceEntity(fromCity = "Milton Park", toCity = "Harare CBD", adultPrice = 2.0),
+
+                PriceEntity(fromCity = "Causeway", toCity = "Harare CBD", adultPrice = 1.0),
 
 
 // Route 2 (Base rate: 1.0 per stop difference)
@@ -151,31 +179,32 @@ object DatabaseSeeder {
             )
             priceDao.insertPrices(prices)
 
+
             // ✅ Insert Locations
             val locations = listOf(
-                LocationEntity("1", "Harare CBD", -17.8292, 31.0522),
-                LocationEntity("2", "The Avenues", -17.8167, 31.0333),
-                LocationEntity("3", "Belvedere", -17.8275, 31.0120),
-                LocationEntity("4", "Mbare", -17.8230, 31.0450),
-                LocationEntity("5", "Highfield", -17.8400, 31.0700),
-                LocationEntity("6", "Borrowdale", -17.7800, 31.0650),
-                LocationEntity("7", "Mount Pleasant", -17.7900, 31.0750),
-                LocationEntity("8", "Newlands", -17.8000, 31.0400),
-                LocationEntity("9", "Chitungwiza", -17.7100, 31.1500),
-                LocationEntity("10", "Epworth", -17.7700, 31.1800),
-                LocationEntity("11", "Alexandra Park", -17.8150, 31.0550),
-                LocationEntity("12", "Arcadia", -17.8250, 31.0650),
-                LocationEntity("13", "Arlington", -17.8200, 31.0680),
-                LocationEntity("14", "Greendale", -17.8100, 31.0720),
-                LocationEntity("15", "Milton Park", -17.8350, 31.0470),
-                LocationEntity("16", "Causeway", -17.8270, 31.0480),
-                LocationEntity("17", "Waterfalls", -17.8350, 31.0600),
-                LocationEntity("18", "Avondale", -17.7950, 31.0800),
-                LocationEntity("19", "Southerton", -17.8300, 31.0450),
-                LocationEntity("20", "Westgate", -17.8100, 31.0200),
-                LocationEntity("21", "Highlands", -17.8050, 31.0950),
+                LocationEntity("1", "Harare CBD", -17.831519192837742, 31.047380474799684),
+                LocationEntity("2", "The Avenues", -17.819990386876434, 31.047064768309873),
+                LocationEntity("3", "Belvedere", -17.828183786232724, 31.01984820636389),
+                LocationEntity("4", "Mbare", -17.86638916448852, 31.03200284779129),
+                LocationEntity("5", "Highfield", -17.88193588141904, 30.981522981920943),
+                LocationEntity("6", "Borrowdale", -17.74971450251613, 31.093916900205176),
+                LocationEntity("7", "Mount Pleasant", -17.767646942255972, 31.047725911567614),
+                LocationEntity("8", "Newlands", -17.810020866183052, 31.083877294030597),
+                LocationEntity("9", "Chitungwiza", -18.01782321540995, 31.073007821155777),
+                LocationEntity("10", "Epworth", -17.896707124627824, 31.15719768809613),
+                LocationEntity("11", "Alexandra Park", -17.79493863816772, 31.056141104405818),
+                LocationEntity("12", "Arcadia", -17.84796288305909, 31.053165881483388),
+                LocationEntity("13", "Arlington", -17.902423818694437, 31.07798331934576),
+                LocationEntity("14", "Greendale", -17.81372074719181, 31.123617495913045),
+                LocationEntity("15", "Milton Park", -17.814686511620252, 31.036046580243525),
+                LocationEntity("16", "Causeway", -17.824451463094018, 31.051811710319182),
+                LocationEntity("17", "Waterfalls", -17.913074, 30.999886),
+                LocationEntity("18", "Avondale", -17.802837383146496, 31.038131519440938),
+                LocationEntity("19", "Southerton", -17.86829214311744, 31.01466710524981),
+                LocationEntity("20", "Westgate", -17.764704169442044, 30.972873930833376),
+                LocationEntity("21", "Highlands", -17.81182390078103, 31.100540616352244),
                 LocationEntity("22", "Hatcliffe", -17.7850, 31.1050),
-                LocationEntity("23", "Belgravia", -17.8200, 31.0600)
+                LocationEntity("23", "Belgravia", -17.80711293256058, 31.040088154678738)
             )
             locationDao.insertLocations(locations)
 
