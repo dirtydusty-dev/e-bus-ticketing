@@ -11,38 +11,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
-import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
-import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
-import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
+import com.sinarowa.e_bus_ticket.ui.components.DropdownMenuComponent
+import com.sinarowa.e_bus_ticket.viewmodel.CreateTripViewModel
+import com.sinarowa.e_bus_ticket.viewmodel.TicketingViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun LuggageTicketingScreen(
-    tripId: String,
-    ticketViewModel: TicketViewModel = viewModel(),
-    tripViewModel: TripViewModel = viewModel(),
-    bluetoothHelper: BluetoothPrinterHelper
+    tripId: Long, // ✅ Fixed: Trip ID should be Long
+    ticketViewModel: TicketingViewModel,
 ) {
     val scaffoldState = rememberScaffoldState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     LaunchedEffect(tripId) {
-        ticketViewModel.setTripId(tripId)
-        tripViewModel.loadTripById(tripId)
+        ticketViewModel.setTrip(tripId)
         ticketViewModel.fetchRouteStops(tripId)
     }
 
-    val fromCity = remember { mutableStateOf("Detecting...") }
+    val fromCity by ticketViewModel.currentLocation.collectAsState() // ✅ Now gets real-time location
     val routeStops by ticketViewModel.routeStops.collectAsState()
-    val tripDetails by tripViewModel.selectedTrip.collectAsState()
     val luggageCount by ticketViewModel.luggageCount.collectAsState()
-
-    LaunchedEffect(tripId) {
-        fromCity.value = ticketViewModel.getCityFromCoordinates(tripId)
-    }
 
     LaunchedEffect(luggageCount) {
         println("Luggage Count Updated: $luggageCount")
@@ -78,8 +68,9 @@ fun LuggageTicketingScreen(
             Text("Luggage Ticketing", style = MaterialTheme.typography.h5, color = Color(0xFF1565C0))
             Spacer(modifier = Modifier.height(8.dp))
 
+            // ✅ From City (Auto-detected)
             OutlinedTextField(
-                value = fromCity.value,
+                value = fromCity,
                 onValueChange = {},
                 label = { Text("From City") },
                 readOnly = true,
@@ -87,11 +78,13 @@ fun LuggageTicketingScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            DropdownMenuComponent("Select Destination", routeStops.filter { it != fromCity.value }, destination) { newSelection ->
+            // ✅ Destination Dropdown
+            DropdownMenuComponent("Select Destination", routeStops.filter { it != fromCity }, destination) { newSelection ->
                 destination = newSelection
             }
             Spacer(modifier = Modifier.height(8.dp))
 
+            // ✅ Luggage Description Field
             OutlinedTextField(
                 value = luggageDescription,
                 onValueChange = { luggageDescription = it },
@@ -100,6 +93,7 @@ fun LuggageTicketingScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
+            // ✅ Price Input
             OutlinedTextField(
                 value = price,
                 onValueChange = {
@@ -117,24 +111,12 @@ fun LuggageTicketingScreen(
 
             val isButtonEnabled = destination.isNotEmpty() && !priceError && price.isNotEmpty() && !isProcessing
 
+            // ✅ Sell & Print Button
             Button(
                 onClick = {
                     isProcessing = true
                     coroutineScope.launch {
-                        val ticketId = ticketViewModel.generateTicketId(tripId)
-                        val newTicket = Ticket(
-                            ticketId = ticketId,
-                            tripId = tripId,
-                            fromStop = fromCity.value,
-                            toStop = destination,
-                            luggage = luggageDescription,
-                            price = price.toDoubleOrNull() ?: 0.0,
-                            ticketType = "Luggage"
-                        )
-                        ticketViewModel.insertTicket(newTicket)
-                        tripDetails?.let {
-                            bluetoothHelper.printTicketWithLogo(context, newTicket, it)
-                        }
+                        ticketViewModel.sellTicket(tripId,fromCity,destination,"Luggage",price.toDoubleOrNull() ?: 0.0)
                         destination = ""
                         luggageDescription = ""
                         price = ""
@@ -162,10 +144,11 @@ fun LuggageTicketingScreen(
         }
     }
 
+    // ✅ Snackbar Confirmation
     LaunchedEffect(showSnackbar) {
         if (showSnackbar) {
             scaffoldState.snackbarHostState.showSnackbar("Luggage Ticket Issued Successfully!")
-            showSnackbar = false
+            showSnackbar = false // ✅ Move inside LaunchedEffect
         }
     }
 }

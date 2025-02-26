@@ -1,29 +1,33 @@
 package com.sinarowa.e_bus_ticket.data.local.dao
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
+
+import androidx.room.*
+import com.sinarowa.e_bus_ticket.data.local.entities.Route
+import kotlinx.coroutines.flow.Flow
+
 
 @Dao
 interface RouteDao {
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRoute(route: Route)
+
+    @Query("SELECT COUNT(*) FROM routes")
+    suspend fun getRouteCount(): Int
+
+    @Query("SELECT * FROM routes WHERE routeName = :routeName")
+    suspend fun getRouteByName(routeName: String): List<Route>
+
+
+    @Delete
+    suspend fun deleteRoute(route: Route)
+
+    @Query("SELECT * FROM routes WHERE id = :routeId")
+    fun getRouteById(routeId: Long): Flow<Route?>
+
     @Query("SELECT * FROM routes")
-    fun getAllRoutes(): List<RouteEntity>
+    fun getAllRoutes(): Flow<List<Route>>
 
-    @Query("SELECT * FROM routes WHERE routeId = :routeId LIMIT 1")
-    suspend fun getRouteById(routeId: String): RouteEntity?  // ✅ Fetch single route by ID
-
-    @Query("SELECT * FROM routes WHERE name = :name")
-    suspend fun getRouteByName(name: String): RouteEntity?
-
-    @Query("SELECT stops FROM routes WHERE routeId = :routeId LIMIT 1")
-    suspend fun getStopsByRouteId(routeId: String): String?  // ✅ Fetch stops only
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertRoutes(routes: List<RouteEntity>)
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertRoute(route: RouteEntity)  // ✅ Insert single route
+    @Insert(onConflict = OnConflictStrategy.REPLACE) // ✅ Ensures no duplicates
+    suspend fun insertAll(routes: List<Route>)
 }

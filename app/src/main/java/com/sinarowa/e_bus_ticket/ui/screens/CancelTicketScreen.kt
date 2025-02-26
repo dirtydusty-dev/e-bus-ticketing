@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.ui.screens
 
 import androidx.compose.foundation.background
@@ -12,7 +13,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -112,3 +112,4 @@ fun CancelTicketScreen(
         )
     }
 }
+*/

@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.ui.screens
 
 import android.content.Context
@@ -10,7 +11,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import com.sinarowa.e_bus_ticket.utils.PdfUtils
 import com.sinarowa.e_bus_ticket.utils.ReportUtils
 import kotlinx.coroutines.launch
@@ -41,7 +41,8 @@ fun TripSalesScreen(tripSales: List<TripViewModel.TripSale>, context: Context) {
     val expenses = mapOf("CLEANING" to 12.25, "DRIVER WAGE" to 0.38) // Placeholder, update dynamically
 
     // 🔹 Generate Report Text
-  /*  val reportText = ReportUtils.generateDailySalesReport(
+  */
+/*  val reportText = ReportUtils.generateDailySalesReport(
         companyName = "Sinarowa Limited",
         date = "2/21/25",
         deviceId = "63d9c65eed502d2d",
@@ -56,7 +57,8 @@ fun TripSalesScreen(tripSales: List<TripViewModel.TripSale>, context: Context) {
         paymentDetails = paymentDetails,
         tripSales = tripSalesList,
         expenses = expenses
-    )*/
+    )*//*
+
 
     Scaffold(
         scaffoldState = scaffoldState,
@@ -71,7 +73,8 @@ fun TripSalesScreen(tripSales: List<TripViewModel.TripSale>, context: Context) {
         Column(
             modifier = Modifier.fillMaxSize().padding(paddingValues)
         ) {
-            /*LazyColumn(
+            */
+/*LazyColumn(
                 modifier = Modifier.weight(1f) // Allows scrolling
             ) {
                 item {
@@ -81,7 +84,8 @@ fun TripSalesScreen(tripSales: List<TripViewModel.TripSale>, context: Context) {
                         modifier = Modifier.padding(16.dp)
                     )
                 }
-            }*/
+            }*//*
+
 
             // ✅ Fixed Button at the Bottom
             Column(
@@ -110,3 +114,4 @@ fun TripSalesScreen(tripSales: List<TripViewModel.TripSale>, context: Context) {
 }
 
 
+*/

@@ -1,36 +1,25 @@
 package com.sinarowa.e_bus_ticket.data.repository
 
 import com.sinarowa.e_bus_ticket.data.local.dao.RouteDao
-import com.sinarowa.e_bus_ticket.data.local.dao.TripDetailsDao
-import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.sinarowa.e_bus_ticket.data.local.entities.Route
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
-class RouteRepository @Inject constructor(
-    private val routeDao: RouteDao,
-    private val tripDao: TripDetailsDao
-) {
-    suspend fun getAllRoutes(): List<RouteEntity> = routeDao.getAllRoutes()
+class RouteRepository @Inject constructor(private val routeDao: RouteDao) {
 
-    suspend fun getRouteById(routeId: String): RouteEntity? = routeDao.getRouteById(routeId)
-
-    suspend fun getStopsByRouteId(routeId: String): String? = routeDao.getStopsByRouteId(routeId)
-
-    suspend fun insertRoutes(routes: List<RouteEntity>) = routeDao.insertRoutes(routes)
-
-    suspend fun insertRoute(route: RouteEntity) = routeDao.insertRoute(route)
-
-
-    /**
-     * ✅ Retrieves the route details for a given trip ID.
-     */
-    suspend fun getRouteByTrip(tripId: String): RouteEntity? {
-        return withContext(Dispatchers.IO) {
-            val trip = tripDao.getTripById(tripId) ?: return@withContext null
-            return@withContext routeDao.getRouteByName(trip.routeName)
-        }
+    suspend fun insertRoute(route: Route) {
+        routeDao.insertRoute(route)
     }
 
+    suspend fun deleteRoute(route: Route) {
+        routeDao.deleteRoute(route)
+    }
 
+    fun getRouteById(routeId: Long): Flow<Route?> {
+        return routeDao.getRouteById(routeId)
+    }
+
+    fun getAllRoutes(): Flow<List<Route>> {
+        return routeDao.getAllRoutes()
+    }
 }

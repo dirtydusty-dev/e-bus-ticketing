@@ -11,50 +11,46 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
-import com.sinarowa.e_bus_ticket.data.local.entities.BusEntity
-import com.sinarowa.e_bus_ticket.data.repository.LocationRepository
-import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
+import com.sinarowa.e_bus_ticket.data.local.entities.Bus
+import com.sinarowa.e_bus_ticket.data.local.entities.Route
+import com.sinarowa.e_bus_ticket.viewmodel.CreateTripViewModel
+import kotlinx.coroutines.launch
 
 @Composable
-fun CreateTripScreen(viewModel: TripViewModel, navController: NavController, locationRepository: LocationRepository) {
-    val routes by viewModel.routes.collectAsState(initial = emptyList())
-    val buses by viewModel.buses.collectAsState(initial = emptyList())
+fun CreateTripScreen(tripViewModel: CreateTripViewModel, navController: NavController) {
+    val routes by tripViewModel.routes.collectAsState(initial = emptyList())
+    val buses by tripViewModel.buses.collectAsState(initial = emptyList())
 
-    var selectedRoute by remember { mutableStateOf<RouteEntity?>(null) }
-    var selectedBus by remember { mutableStateOf<BusEntity?>(null) }
-    var isCreatingTrip by remember { mutableStateOf(false) } // ✅ State for button loading
+    var selectedRoute by remember { mutableStateOf<Route?>(null) }
+    var selectedBus by remember { mutableStateOf<Bus?>(null) }
+    var isCreatingTrip by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadRoutes()
-        viewModel.loadBuses()
-    }
+    val coroutineScope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White) // White background
+            .background(Color.White)
             .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Create a New Trip", style = MaterialTheme.typography.h5, color = Color(0xFF1565C0))
-
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ✅ Route Dropdown (Displays route names)
-        DropdownMenuComponent(
+        // ✅ Route Dropdown
+        DropdownSelector(
             label = "Select Route",
             items = routes,
             selectedItem = selectedRoute,
             onSelectionChanged = { selectedRoute = it },
-            displayText = { it.name }
+            displayText = { it.routeName }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ✅ Bus Dropdown (Displays bus names)
-        DropdownMenuComponent(
+        // ✅ Bus Dropdown
+        DropdownSelector(
             label = "Select Bus",
             items = buses,
             selectedItem = selectedBus,
@@ -67,36 +63,47 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController, loc
         // ✅ Create Trip Button
         Button(
             onClick = {
-                isCreatingTrip = true
-                selectedRoute?.let { route ->
-                    selectedBus?.let { bus ->
-                        viewModel.createTrip(route, bus)
-                        navController.popBackStack()
+                coroutineScope.launch {
+                    isCreatingTrip = true
+                    selectedRoute?.let { route ->
+                        selectedBus?.let { bus ->
+                            try {
+                                val tripId = tripViewModel.createTrip(route.id, bus.id) // Get trip ID
+                                if (tripId != null) {
+                                    // If trip is created, navigate away
+                                    navController.popBackStack()
+                                } else {
+                                    // Handle case when trip is not created
+                                    isCreatingTrip = false
+                                }
+                            } catch (e: Exception) {
+                                // Handle error (e.g., log or show snackbar)
+                                isCreatingTrip = false
+                            }
+                        }
                     }
+                    isCreatingTrip = false
                 }
-                isCreatingTrip = false
             },
             enabled = selectedRoute != null && selectedBus != null && !isCreatingTrip,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFFFEB3B)) // Yellow
+            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFFFEB3B))
         ) {
             if (isCreatingTrip) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = Color.Black
-                )
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
             } else {
                 Text("Create Trip", color = Color.Black)
             }
         }
+
     }
 }
 
 /**
- * ✅ Generic Dropdown Menu for Selecting Items
+ * ✅ Reusable Dropdown Selector Component (Fixed for Real-time Updates)
  */
 @Composable
-fun <T> DropdownMenuComponent(
+fun <T> DropdownSelector(
     label: String,
     items: List<T>,
     selectedItem: T?,
@@ -104,11 +111,11 @@ fun <T> DropdownMenuComponent(
     displayText: (T) -> String
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedText by rememberUpdatedState(newValue = selectedItem?.let { displayText(it) } ?: label)
+    val selectedText by rememberUpdatedState(selectedItem?.let { displayText(it) } ?: label)
 
     Box(modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
-            value = selectedText, // ✅ No recomputation issue
+            value = selectedText,
             onValueChange = {},
             readOnly = true,
             modifier = Modifier.fillMaxWidth(),

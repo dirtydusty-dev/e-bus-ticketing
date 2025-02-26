@@ -14,7 +14,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.R
-import com.sinarowa.e_bus_ticket.viewmodel.LoginViewModel
 
 @Composable
 fun LoginScreen(

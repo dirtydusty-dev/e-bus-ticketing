@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.utils
 
 import android.content.ContentValues
@@ -9,7 +10,6 @@ import android.net.Uri
 import com.itextpdf.kernel.pdf.PdfDocument
 import android.os.Environment
 import android.provider.MediaStore
-import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 
 import android.util.Log
 import android.widget.Toast
@@ -244,3 +244,4 @@ object PdfUtils {
 
 
 }
+*/

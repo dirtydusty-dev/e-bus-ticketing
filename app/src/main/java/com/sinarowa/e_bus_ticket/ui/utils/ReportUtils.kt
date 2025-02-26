@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.utils
 
 import android.content.Context
@@ -5,7 +6,6 @@ import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
-import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -435,9 +435,11 @@ object ReportUtils {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Generates the trip summary section
-     */
+     *//*
+
     fun generateTripSummary(
         tripName: String,
         totalSales: Double,
@@ -455,17 +457,21 @@ object ReportUtils {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Formats a double value to 2 decimal places
-     */
+     *//*
+
     private fun formatAmount(amount: Double): String {
         return "%.2f".format(amount)
     }
 
 
-    /**
+    */
+/**
      * ✅ Generates the ONBOARD NOW section
-     */
+     *//*
+
     fun generateOnboardNow(
         currentLocation: String,
         adults: Int,
@@ -483,9 +489,11 @@ object ReportUtils {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Generates the DESTINATION DETAILS section
-     */
+     *//*
+
 
 
 
@@ -494,3 +502,4 @@ object ReportUtils {
 
 
 }
+*/

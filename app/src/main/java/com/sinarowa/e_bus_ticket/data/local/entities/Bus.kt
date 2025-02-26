@@ -1,11 +1,12 @@
 package com.sinarowa.e_bus_ticket.data.local.entities
+
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "buses")
-data class BusEntity(
-    @PrimaryKey val busId: String,
+data class Bus(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val busName: String,
     val busNumber: String,
-    val totalSeats: Int
+    val capacity: Int
 )

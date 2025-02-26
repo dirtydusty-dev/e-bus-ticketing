@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.sinarowa.e_bus_ticket.data.local.BusTicketingDatabase
 import com.sinarowa.e_bus_ticket.data.local.dao.*
+import com.sinarowa.e_bus_ticket.data.repository.ReportsRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -15,12 +16,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    @Provides
-    @Singleton
-    fun provideContext(@ApplicationContext context: Context): Context {
-        return context
-    }
-
+    // ✅ Provide Database Instance
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): BusTicketingDatabase {
@@ -28,11 +24,13 @@ object AppModule {
             context,
             BusTicketingDatabase::class.java,
             "bus_ticketing_db"
-        ).fallbackToDestructiveMigration().build()
+        )//.fallbackToDestructiveMigration()
+            .build()
     }
 
+    // ✅ Provide All DAOs
     @Provides
-    fun provideTripDao(database: BusTicketingDatabase): TripDetailsDao = database.tripDetailsDao()
+    fun provideTripDao(database: BusTicketingDatabase): TripDao = database.tripDao()
 
     @Provides
     fun provideRouteDao(database: BusTicketingDatabase): RouteDao = database.routeDao()
@@ -47,11 +45,17 @@ object AppModule {
     fun providePriceDao(database: BusTicketingDatabase): PriceDao = database.priceDao()
 
     @Provides
-    fun provideLocationDao(database: BusTicketingDatabase): LocationDao = database.locationDao()
+    fun provideStationDao(database: BusTicketingDatabase): StationDao = database.stationDao()
 
     @Provides
     fun provideTicketDao(database: BusTicketingDatabase): TicketDao = database.ticketDao()
 
     @Provides
-    fun provideTicketCounterDao(database: BusTicketingDatabase): TicketCounterDao = database.ticketCounterDao()
+    fun provideReportsDao(database: BusTicketingDatabase): ReportsDao = database.reportsDao()
+
+    // ✅ Provide ReportsRepository (FIXES YOUR ERROR)
+    @Provides
+    fun provideReportsRepository(reportsDao: ReportsDao): ReportsRepository {
+        return ReportsRepository(reportsDao)
+    }
 }

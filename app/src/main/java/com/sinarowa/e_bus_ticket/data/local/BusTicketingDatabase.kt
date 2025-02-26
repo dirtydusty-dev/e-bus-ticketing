@@ -4,35 +4,34 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import com.sinarowa.e_bus_ticket.data.local.dao.*
 import com.sinarowa.e_bus_ticket.data.local.entities.*
 
 @Database(
     entities = [
-        TripDetails::class,
+        Trip::class,         // ✅ Fixed naming: `TripDetails` → `Trip`
         Ticket::class,
         Expense::class,
-        RouteEntity::class,   // ✅ Added
-        LocationEntity::class, // ✅ Added
-        PriceEntity::class,   // ✅ Added
-        BusEntity::class, // ✅ Added
-        SyncQueue::class,
-        TicketCounter::class
+        Route::class,        // ✅ Fixed naming: `RouteEntity` → `Route`
+        StationCoordinates::class,
+        Price::class,        // ✅ Fixed naming: `PriceEntity` → `Price`
+        Bus::class,          // ✅ Fixed naming: `BusEntity` → `Bus`
     ],
-    version = 4, // ✅ Increment version if you changed schema
-    exportSchema = false
+    version = 5, // ✅ Incremented version for schema changes
+    exportSchema = true // ✅ Export schema for migrations
 )
+@TypeConverters(Converters::class)
 abstract class BusTicketingDatabase : RoomDatabase() {
 
-    abstract fun tripDetailsDao(): TripDetailsDao
+    abstract fun tripDao(): TripDao // ✅ Fixed naming: `tripDetailsDao()` → `tripDao()`
     abstract fun ticketDao(): TicketDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun routeDao(): RouteDao
-    abstract fun locationDao(): LocationDao
+    abstract fun stationDao(): StationDao
     abstract fun priceDao(): PriceDao
     abstract fun busDao(): BusDao
-    abstract fun syncQueueDao(): SyncQueueDao
-    abstract fun ticketCounterDao(): TicketCounterDao
+    abstract fun reportsDao(): ReportsDao
 
     companion object {
         @Volatile
@@ -45,7 +44,7 @@ abstract class BusTicketingDatabase : RoomDatabase() {
                     BusTicketingDatabase::class.java,
                     "bus_ticketing_db"
                 )
-                    .fallbackToDestructiveMigration() // ✅ Clears DB if schema changes
+                    //.fallbackToDestructiveMigration() // ✅ Clears DB if schema changes
                     .build()
                 INSTANCE = instance
                 instance

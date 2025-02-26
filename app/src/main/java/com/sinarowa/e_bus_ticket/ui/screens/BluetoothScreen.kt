@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.ui.screens
 
 import android.app.Activity
@@ -107,3 +108,4 @@ fun BluetoothDevicesScreen(bluetoothHelper: BluetoothPrinterHelper, activity: Ac
         }
     }
 }
+*/

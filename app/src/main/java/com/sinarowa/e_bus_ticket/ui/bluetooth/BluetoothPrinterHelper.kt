@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.ui.bluetooth
 
 import android.Manifest
@@ -19,7 +20,6 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.sinarowa.e_bus_ticket.R
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
-import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -115,9 +115,11 @@ class BluetoothPrinterHelper(private val context: Context) {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Checks if the app has Bluetooth permissions
-     */
+     *//*
+
     fun hasBluetoothPermissions(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             ContextCompat.checkSelfPermission(
@@ -147,9 +149,11 @@ class BluetoothPrinterHelper(private val context: Context) {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Check if a printer is currently connected
-     */
+     *//*
+
     fun isPrinterConnected(): Boolean {
         return try {
             bluetoothSocket?.isConnected == true
@@ -159,9 +163,11 @@ class BluetoothPrinterHelper(private val context: Context) {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Returns a list of paired Bluetooth printers
-     */
+     *//*
+
     fun getPairedPrinters(): List<BluetoothDevice> {
         return try {
             if (!hasBluetoothPermissions()) {
@@ -184,14 +190,18 @@ class BluetoothPrinterHelper(private val context: Context) {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Connects to a Bluetooth printer in a coroutine (Non-Blocking)
-     */
+     *//*
 
 
-    /**
+
+    */
+/**
      * ✅ Sends text to the printer
-     */
+     *//*
+
     fun printText(text: String) {
         try {
             if (!hasBluetoothPermissions()) {
@@ -212,9 +222,11 @@ class BluetoothPrinterHelper(private val context: Context) {
         }
     }
 
-    /**
+    */
+/**
      * ✅ Closes the printer connection
-     */
+     *//*
+
     fun closeConnection() {
         try {
             outputStream?.close()
@@ -388,3 +400,4 @@ class BluetoothPrinterHelper(private val context: Context) {
     }
 
 }
+*/

@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.ui.screens
 
 import android.content.Context
@@ -18,8 +19,6 @@ import androidx.compose.ui.unit.dp
 import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
 import com.sinarowa.e_bus_ticket.utils.PdfUtils
 import com.sinarowa.e_bus_ticket.utils.ReportUtils
-import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
-import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -131,3 +130,4 @@ fun ReportsScreen(tripId: String, tripViewModel: TripViewModel, ticketViewModel:
         }
     }
 }
+*/

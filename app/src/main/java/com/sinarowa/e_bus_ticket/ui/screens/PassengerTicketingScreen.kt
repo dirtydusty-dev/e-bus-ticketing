@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,91 +12,71 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
-import com.sinarowa.e_bus_ticket.ui.bluetooth.BluetoothPrinterHelper
-import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
-import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
+import com.sinarowa.e_bus_ticket.ui.components.DropdownMenuComponent
+import com.sinarowa.e_bus_ticket.utils.LocationUtils
+import com.sinarowa.e_bus_ticket.viewmodel.TicketingViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.max
 
 @Composable
 fun PassengerTicketingScreen(
-    tripId: String,
-    ticketViewModel: TicketViewModel = viewModel(),
-    tripViewModel: TripViewModel = viewModel(),
-    bluetoothHelper: BluetoothPrinterHelper
+    tripId: Long,
+    ticketViewModel: TicketingViewModel,
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Initialize ViewModels
-    LaunchedEffect(tripId) {
-        ticketViewModel.setTripId(tripId)
-        tripViewModel.loadTripById(tripId)
-        ticketViewModel.fetchRouteStops(tripId)
-    }
-
-    // Form state
+    // **State Variables**
     var destination by remember { mutableStateOf("Select Destination") }
     var ticketType by remember { mutableStateOf("Select Ticket Type") }
     var shortAmount by remember { mutableStateOf(0) }
-    var price by remember { mutableStateOf(0.0) }
     var isProcessing by remember { mutableStateOf(false) }
 
-    // Trip and ticket data
-    val tripDetails by tripViewModel.selectedTrip.collectAsState()
-    val busSeats = remember { mutableStateOf<Int?>(null) }
-    val ticketCount by ticketViewModel.ticketCountSeat.collectAsState()
+    // **Live Data**
+    val ticketCount by ticketViewModel.ticketCount.collectAsState()
     val luggageCount by ticketViewModel.luggageCount.collectAsState()
     val departedCount by ticketViewModel.departedCount.collectAsState()
-    val routeStops by ticketViewModel.routeStops.collectAsState()
+    val currentCoordinates by ticketViewModel.currentCoordinates.collectAsState()
+    val routeStations by ticketViewModel.routeStops.collectAsState()
+    val busCapacity by ticketViewModel.busCapacity.collectAsState()
+    val stationCoordinates by ticketViewModel.stationCoordinates.collectAsState()
+    val price by ticketViewModel.ticketPrice.collectAsState() // Collect price from ViewModel
 
-    // Remaining seats calculation with non-negative enforcement
-    val remainingSeats = remember(ticketCount, busSeats.value) {
-        derivedStateOf {
-            val totalSeats = busSeats.value ?: 0
-            max(0, totalSeats - ticketCount) // Prevent negative seats
-        }
+
+
+    // **Find Nearest Station**
+    val fromCity by remember(currentCoordinates, routeStations) {
+        mutableStateOf(
+            LocationUtils.findNearestStation(
+                currentCoordinates?.latitude,
+                currentCoordinates?.longitude,
+                routeStations,
+                stationCoordinates,
+                lastKnownStation = ticketViewModel.lastKnownStation
+            )
+        )
     }
 
-    // Fetch bus seats with logging
-    LaunchedEffect(tripDetails) {
-        tripDetails?.busName?.let { busName ->
-            val seats = tripViewModel.getBusSeats(busName) ?: 50 // Default to 50 if null
-            busSeats.value = seats
-            println("Bus Seats Fetched for $busName: $seats")
-        }
+    // **Get Valid Stops After `fromCity`**
+    val validStops = remember(routeStations, fromCity) {
+        LocationUtils.getValidStops(routeStations, fromCity)
     }
 
-    LaunchedEffect(tripId) {
-        ticketViewModel.refreshDepartedCount(tripId)
-    }
+    // **Remaining Seats Calculation**
+    val remainingSeats = derivedStateOf { max(0, busCapacity - ticketCount) }
 
-    // Location and pricing
-    val fromCity = remember { mutableStateOf("Detecting...") }
-    LaunchedEffect(tripId) {
-        fromCity.value = ticketViewModel.getCityFromCoordinates(tripId)
-    }
-
-    val validStops = remember(routeStops, fromCity.value) {
-        routeStops.filter { it != fromCity.value }
-    }
-
-    LaunchedEffect(fromCity.value, destination, ticketType) {
-        if (fromCity.value.isNotEmpty() && destination != "Select Destination" && ticketType != "Select Ticket Type") {
-            price = ticketViewModel.getPrice(fromCity.value, destination, ticketType)
+    // **Calculate Price Automatically**
+    // Trigger price calculation when destination changes
+    LaunchedEffect(destination, fromCity) {
+        if (destination != "Select Destination" && fromCity != destination) {
+            ticketViewModel.getPrice(fromCity, destination) // Call on destination change
         } else {
-            price = 0.0
+            ticketViewModel.getPrice(fromCity, fromCity) // Reset or default price
         }
     }
 
-    // Debug logging
-    LaunchedEffect(ticketCount, busSeats.value) {
-        println("Ticket Count Updated: $ticketCount, Bus Seats: ${busSeats.value}, Remaining Seats: ${remainingSeats.value}")
-    }
 
-    // UI Layout
+    // **UI Layout**
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -105,8 +84,9 @@ fun PassengerTicketingScreen(
         Text("Passenger Ticketing", style = MaterialTheme.typography.h5, color = Color(0xFF1565C0))
         Spacer(modifier = Modifier.height(8.dp))
 
+        // **From City Field**
         OutlinedTextField(
-            value = fromCity.value,
+            value = fromCity,
             onValueChange = {},
             label = { Text("From City") },
             readOnly = true,
@@ -114,109 +94,48 @@ fun PassengerTicketingScreen(
         )
         Spacer(modifier = Modifier.height(8.dp))
 
+        // **Destination Dropdown**
         DropdownMenuComponent("Select Destination", validStops, destination) { newSelection ->
             destination = newSelection
         }
         Spacer(modifier = Modifier.height(8.dp))
 
+        // **Ticket Type Dropdown**
         DropdownMenuComponent("Select Ticket Type", listOf("Adult", "Child"), ticketType) { newType ->
             ticketType = newType
             shortAmount = 0
         }
         Spacer(modifier = Modifier.height(8.dp))
 
+        // **Short Payment Adjustment**
         if (ticketType == "Adult") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = { if (shortAmount > 0) shortAmount -= 1 },
-                    enabled = shortAmount > 0,
-                    modifier = Modifier.size(40.dp),
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)
-                ) {
-                    Text("-", color = Color.White)
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Text("Short: $$shortAmount", style = MaterialTheme.typography.h6)
-                Spacer(modifier = Modifier.width(16.dp))
-                Button(
-                    onClick = { if (shortAmount < price.toInt() - 1) shortAmount += 1 },
-                    modifier = Modifier.size(40.dp),
-                    colors = ButtonDefaults.buttonColors(backgroundColor = Color.Green)
-                ) {
-                    Text("+", color = Color.White)
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            elevation = 4.dp,
-            backgroundColor = Color.White
-        ) {
-            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Passenger Tickets Sold", style = MaterialTheme.typography.body2)
-                    Text("$ticketCount", style = MaterialTheme.typography.h6, color = Color(0xFF1565C0))
-                }
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Luggage Tickets Sold", style = MaterialTheme.typography.body2)
-                    Text("$luggageCount", style = MaterialTheme.typography.h6, color = Color(0xFF1565C0))
-                }
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Departed Customers", style = MaterialTheme.typography.body2)
-                    Text("$departedCount", style = MaterialTheme.typography.h6, color = Color(0xFFE65100))
-                }
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Open Seats Remaining", style = MaterialTheme.typography.body2)
-                    Text("${remainingSeats.value}", style = MaterialTheme.typography.h6, color = Color(0xFF43A047))
-                }
+            PriceAdjustmentComponent(shortAmount, price.toInt()) { newAmount ->
+                shortAmount = newAmount
             }
         }
 
+        TicketSummaryCard(ticketCount, luggageCount, departedCount, remainingSeats.value)
+
+        // **Final Price**
         Spacer(modifier = Modifier.height(8.dp))
         Text("Price: $${price - shortAmount}", style = MaterialTheme.typography.h5, color = Color(0xFFFFEB3B))
         Spacer(modifier = Modifier.height(16.dp))
 
         val isButtonEnabled = destination != "Select Destination" &&
                 ticketType != "Select Ticket Type" &&
-                fromCity.value != destination &&
+                fromCity != destination &&
                 (price - shortAmount) > 0.0 &&
                 remainingSeats.value > 0
 
+        // **Sell & Print Ticket Button**
         Button(
             onClick = {
                 isProcessing = true
                 coroutineScope.launch {
-                    val ticketId = ticketViewModel.generateTicketId(tripId)
-                    val formattedTicketType = when {
-                        ticketType == "Child" -> "Child"
-                        shortAmount > 0 -> "$$shortAmount Short"
-                        else -> "Adult"
-                    }
-                    val newTicket = Ticket(
-                        tripId = tripId,
-                        ticketId = ticketId,
-                        fromStop = fromCity.value,
-                        toStop = destination,
-                        price = price - shortAmount,
-                        ticketType = formattedTicketType
-                    )
-                    ticketViewModel.insertTicket(newTicket)
-                    tripDetails?.let {
-                        bluetoothHelper.printTicketWithLogo(context, newTicket, it)
-                    }
+                    ticketViewModel.sellTicket(tripId, fromCity, destination, ticketType, price - shortAmount)
                     destination = "Select Destination"
                     ticketType = "Select Ticket Type"
                     shortAmount = 0
-                    price = 0.0
                     isProcessing = false
                 }
             },
@@ -237,35 +156,89 @@ fun PassengerTicketingScreen(
 }
 
 @Composable
-fun DropdownMenuComponent(
-    label: String,
-    items: List<String>,
-    selectedItem: String,
-    onSelectionChanged: (String) -> Unit
+fun PriceAdjustmentComponent(
+    shortAmount: Int,
+    maxAmount: Int,
+    onAmountChanged: (Int) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = selectedItem,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            modifier = Modifier.fillMaxWidth(),
-            trailingIcon = {
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
-                }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Button(
+            onClick = { if (shortAmount > 0) onAmountChanged(shortAmount - 1) },
+            enabled = shortAmount > 0,
+            modifier = Modifier.size(40.dp),
+            colors = ButtonDefaults.buttonColors(backgroundColor = Color.Red)
+        ) {
+            Text("-", color = Color.White)
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Text("Short: $$shortAmount", style = MaterialTheme.typography.h6)
+        Spacer(modifier = Modifier.width(16.dp))
+        Button(
+            onClick = { if (shortAmount < maxAmount - 1) onAmountChanged(shortAmount + 1) },
+            modifier = Modifier.size(40.dp),
+            colors = ButtonDefaults.buttonColors(backgroundColor = Color.Green)
+        ) {
+            Text("+", color = Color.White)
+        }
+    }
+}
+
+
+@Composable
+fun TicketSummaryCard(
+    ticketCount: Int,
+    luggageCount: Int,
+    departedCount: Int,
+    remainingSeats: Int
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(8.dp),
+        elevation = 4.dp,
+        backgroundColor = Color.White
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Passenger Tickets Sold", style = MaterialTheme.typography.body2)
+                Text("$ticketCount", style = MaterialTheme.typography.h6, color = Color(0xFF1565C0))
             }
-        )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            items.forEach { item ->
-                DropdownMenuItem(onClick = {
-                    onSelectionChanged(item)
-                    expanded = false
-                }) {
-                    Text(item)
-                }
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Luggage Tickets Sold", style = MaterialTheme.typography.body2)
+                Text("$luggageCount", style = MaterialTheme.typography.h6, color = Color(0xFF1565C0))
+            }
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Departed Customers", style = MaterialTheme.typography.body2)
+                Text("$departedCount", style = MaterialTheme.typography.h6, color = Color(0xFFE65100))
+            }
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Open Seats Remaining", style = MaterialTheme.typography.body2)
+                Text("$remainingSeats", style = MaterialTheme.typography.h6, color = Color(0xFF43A047))
             }
         }
     }
 }
+

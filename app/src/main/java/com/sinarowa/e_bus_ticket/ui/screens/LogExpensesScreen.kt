@@ -12,22 +12,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import com.sinarowa.e_bus_ticket.data.local.entities.Expense
-import com.sinarowa.e_bus_ticket.viewmodel.ExpensesViewModel
-import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
-import kotlinx.coroutines.delay
+import com.sinarowa.e_bus_ticket.ui.components.DropdownMenuComponent
+import com.sinarowa.e_bus_ticket.viewmodel.ExpenseViewModel
+import com.sinarowa.e_bus_ticket.viewmodel.TicketingViewModel
 import kotlinx.coroutines.launch
 import java.util.UUID
 
 @Composable
 fun LogExpensesScreen(
-    tripId: String,
-    navController: NavController,
-    expensesViewModel: ExpensesViewModel = viewModel(),
-    ticketViewModel: TicketViewModel = viewModel()
+    tripId: Long, // ✅ Fixed: Trip ID should be Long
+    expensesViewModel: ExpenseViewModel,
+    ticketViewModel: TicketingViewModel
 ) {
     val scaffoldState = rememberScaffoldState()
     val coroutineScope = rememberCoroutineScope()
@@ -41,19 +36,11 @@ fun LogExpensesScreen(
     var description by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var amountError by remember { mutableStateOf(false) }
-    var isProcessing by remember { mutableStateOf(false) } // ✅ Track button loading
+    var isProcessing by remember { mutableStateOf(false) }
     var showSnackbar by remember { mutableStateOf(false) }
+    val fromCity by ticketViewModel.currentLocation.collectAsState()
 
-    val fromCity = remember { mutableStateOf("Detecting...") }
 
-    // ✅ Fetch city from GPS
-    LaunchedEffect(tripId) {
-        if (fromCity.value == "Detecting...") { // ✅ Prevent multiple calls
-            coroutineScope.launch {
-                fromCity.value = ticketViewModel.getCityFromCoordinates(tripId)
-            }
-        }
-    }
 
     Scaffold(
         scaffoldState = scaffoldState,
@@ -116,15 +103,7 @@ fun LogExpensesScreen(
                 onClick = {
                     isProcessing = true // ✅ Show loading indicator
                     coroutineScope.launch {
-                        val newExpense = Expense(
-                            expenseId = UUID.randomUUID().toString(),
-                            tripId = tripId,
-                            type = selectedExpense,
-                            amount = amount.toDouble(),
-                            description = description,
-                            location = fromCity.value
-                        )
-                        expensesViewModel.insertExpense(newExpense)
+                        expensesViewModel.logExpense(tripId,selectedExpense,description,amount.toDouble(),)
 
                         // 🔄 Reset fields properly
                         selectedExpense = expenseTypes.first()
@@ -148,6 +127,8 @@ fun LogExpensesScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
+                    Icon(Icons.Default.AttachMoney, contentDescription = "Money Icon", tint = Color.Black)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text("Save Expense", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
             }

@@ -1,46 +1,39 @@
 package com.sinarowa.e_bus_ticket.data.repository
 
-import com.sinarowa.e_bus_ticket.data.local.dao.TripDetailsDao
-import com.sinarowa.e_bus_ticket.data.local.entities.TripDetails
+import android.util.Log
+import com.sinarowa.e_bus_ticket.data.local.dao.TripDao
+import com.sinarowa.e_bus_ticket.data.local.entities.Trip
+import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
-class TripRepository @Inject constructor(
-    private val tripDao: TripDetailsDao
-) {
-    /**
-     * Fetch trips stored locally in the database (NO API CALLS)
-     */
-    fun getAllTrips(): Flow<List<TripDetails>> = tripDao.getAllTrips()
+class TripRepository @Inject constructor(private val tripDao: TripDao) {
+
+    suspend fun insertTrip(trip: Trip): Long {
+        val result = tripDao.insertTrip(trip)
+        Log.d("Database", "Inserted trip with ID: $result")
+        return result
+    }
 
 
-    fun getAllActiveTrips(): Flow<List<TripDetails>> = tripDao.getAllActiveTrips()
+    suspend fun deleteTrip(trip: Trip) {
+        tripDao.deleteTrip(trip)
+    }
 
-    /**
-     * Fetch a single trip by ID from the database
-     */
-    suspend fun getTripById(tripId: String): TripDetails? {
+    fun getTripById(tripId: Long): Flow<TripWithRoute?> {
         return tripDao.getTripById(tripId)
     }
 
-
-    suspend fun endTripById(tripId: String,isComplete: Int,endTripCompleteTime: String){
-        return tripDao.endTrip(tripId,isComplete,endTripCompleteTime)
+    fun getActiveTrips(): Flow<List<Trip>> {
+        return tripDao.getActiveTrips()
     }
 
-
-
-    /**
-     * Inserts a trip into the database
-     */
-    suspend fun insertTrip(trip: TripDetails) {
-        tripDao.insertTrip(trip)
+    fun getActiveTripsWithRoute(): Flow<List<TripWithRoute>> {
+        return tripDao.getActiveTripsWithRoute()
     }
 
-    /**
-     * Clears all trips (for resetting the database)
-     */
-    suspend fun clearTrips() {
-        tripDao.clearTrips()
+    suspend fun updateTripStatus(tripId: Long, status: String) {
+        tripDao.updateTripStatus(tripId, status)
     }
+
 }
