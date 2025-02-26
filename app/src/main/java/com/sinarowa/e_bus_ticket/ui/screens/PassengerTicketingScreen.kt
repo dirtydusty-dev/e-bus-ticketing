@@ -20,6 +20,7 @@ import kotlin.math.max
 
 @Composable
 fun PassengerTicketingScreen(
+    routeId: Long,
     tripId: Long,
     ticketViewModel: TicketingViewModel,
 ) {
@@ -41,6 +42,12 @@ fun PassengerTicketingScreen(
     val busCapacity by ticketViewModel.busCapacity.collectAsState()
     val stationCoordinates by ticketViewModel.stationCoordinates.collectAsState()
     val price by ticketViewModel.ticketPrice.collectAsState() // Collect price from ViewModel
+
+
+    val location by ticketViewModel.locationState.collectAsState()
+    LaunchedEffect(routeId) {
+        ticketViewModel.fetchLocation(routeId)
+    }
 
 
 
@@ -67,14 +74,14 @@ fun PassengerTicketingScreen(
 
     // **Calculate Price Automatically**
     // Trigger price calculation when destination changes
-    LaunchedEffect(destination, fromCity) {
+    /*LaunchedEffect(destination, fromCity) {
         if (destination != "Select Destination" && fromCity != destination) {
             ticketViewModel.getPrice(fromCity, destination) // Call on destination change
         } else {
             ticketViewModel.getPrice(fromCity, fromCity) // Reset or default price
         }
     }
-
+*/
 
     // **UI Layout**
     Column(
@@ -86,7 +93,7 @@ fun PassengerTicketingScreen(
 
         // **From City Field**
         OutlinedTextField(
-            value = fromCity,
+            value = location,
             onValueChange = {},
             label = { Text("From City") },
             readOnly = true,

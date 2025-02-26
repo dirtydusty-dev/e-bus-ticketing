@@ -12,6 +12,7 @@ import com.google.android.gms.location.*
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 import com.sinarowa.e_bus_ticket.data.local.enums.TicketStatus
 import com.sinarowa.e_bus_ticket.data.repository.*
+import com.sinarowa.e_bus_ticket.domain.usecase.GetLocationUseCase
 import com.sinarowa.e_bus_ticket.utils.DateTimeUtils
 import com.sinarowa.e_bus_ticket.utils.LocationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,6 +25,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TicketingViewModel @Inject constructor(
     application: Application,
+    private val getLocationUseCase: GetLocationUseCase,
     private val ticketRepository: TicketRepository,
     private val tripRepository: TripRepository,
     private val routeRepository: RouteRepository,
@@ -61,6 +63,20 @@ class TicketingViewModel @Inject constructor(
             _ticketPrice.value = price // Update on IO thread, will propagate to UI
         }
     }
+
+    private val _locationState = MutableStateFlow<String>("")
+    val locationState: StateFlow<String> = _locationState
+
+    // Fetch the best location for ticketing
+    fun fetchLocation(routeId: Long) {
+        viewModelScope.launch {
+            val location = getLocationUseCase(routeId)
+            _locationState.value = location
+        }
+    }
+
+
+
     // ✅ Fetch real-time ticket counts for the current trip
     val ticketCount = _currentTripId
         .filterNotNull()
