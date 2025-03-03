@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "buses")
 data class Bus(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val busId: String,
     val busName: String,
     val busNumber: String,
     val capacity: Int

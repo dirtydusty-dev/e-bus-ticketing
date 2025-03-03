@@ -4,13 +4,13 @@ import android.content.Context
 import androidx.room.Room
 import com.sinarowa.e_bus_ticket.data.local.BusTicketingDatabase
 import com.sinarowa.e_bus_ticket.data.local.dao.*
-import com.sinarowa.e_bus_ticket.data.repository.ReportsRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Singleton
+
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -24,8 +24,7 @@ object AppModule {
             context,
             BusTicketingDatabase::class.java,
             "bus_ticketing_db"
-        )//.fallbackToDestructiveMigration()
-            .build()
+        ).build()
     }
 
     // ✅ Provide All DAOs
@@ -53,9 +52,10 @@ object AppModule {
     @Provides
     fun provideReportsDao(database: BusTicketingDatabase): ReportsDao = database.reportsDao()
 
-    // ✅ Provide ReportsRepository (FIXES YOUR ERROR)
     @Provides
-    fun provideReportsRepository(reportsDao: ReportsDao): ReportsRepository {
-        return ReportsRepository(reportsDao)
-    }
+    fun provideRouteStopDao(database: BusTicketingDatabase): RouteStopDao = database.routeStopDao()
+
+
+
+
 }

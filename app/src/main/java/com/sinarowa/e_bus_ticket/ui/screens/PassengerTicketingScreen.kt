@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.ui.screens
 
 import android.content.Context
@@ -14,17 +15,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sinarowa.e_bus_ticket.ui.components.DropdownMenuComponent
 import com.sinarowa.e_bus_ticket.utils.LocationUtils
-import com.sinarowa.e_bus_ticket.viewmodel.TicketingViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.max
 
 @Composable
 fun PassengerTicketingScreen(
-    routeId: Long,
     tripId: Long,
     ticketViewModel: TicketingViewModel,
 ) {
-    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     // **State Variables**
@@ -41,26 +39,24 @@ fun PassengerTicketingScreen(
     val routeStations by ticketViewModel.routeStops.collectAsState()
     val busCapacity by ticketViewModel.busCapacity.collectAsState()
     val stationCoordinates by ticketViewModel.stationCoordinates.collectAsState()
-    val price by ticketViewModel.ticketPrice.collectAsState() // Collect price from ViewModel
-
+    val price by ticketViewModel.ticketPrice.collectAsState()
 
     val location by ticketViewModel.locationState.collectAsState()
-    LaunchedEffect(routeId) {
-        ticketViewModel.fetchLocation(routeId)
-    }
-
-
 
     // **Find Nearest Station**
     val fromCity by remember(currentCoordinates, routeStations) {
         mutableStateOf(
-            LocationUtils.findNearestStation(
-                currentCoordinates?.latitude,
-                currentCoordinates?.longitude,
-                routeStations,
-                stationCoordinates,
-                lastKnownStation = ticketViewModel.lastKnownStation
-            )
+            if (currentCoordinates != null) {
+                LocationUtils.findNearestStation(
+                    currentCoordinates!!.latitude,
+                    currentCoordinates!!.longitude,
+                    routeStations,
+                    stationCoordinates,
+                    lastKnownStation = ticketViewModel.lastKnownStation
+                )
+            } else {
+                "Unknown"
+            }
         )
     }
 
@@ -72,17 +68,6 @@ fun PassengerTicketingScreen(
     // **Remaining Seats Calculation**
     val remainingSeats = derivedStateOf { max(0, busCapacity - ticketCount) }
 
-    // **Calculate Price Automatically**
-    // Trigger price calculation when destination changes
-    /*LaunchedEffect(destination, fromCity) {
-        if (destination != "Select Destination" && fromCity != destination) {
-            ticketViewModel.getPrice(fromCity, destination) // Call on destination change
-        } else {
-            ticketViewModel.getPrice(fromCity, fromCity) // Reset or default price
-        }
-    }
-*/
-
     // **UI Layout**
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -93,7 +78,7 @@ fun PassengerTicketingScreen(
 
         // **From City Field**
         OutlinedTextField(
-            value = location,
+            value = fromCity,
             onValueChange = {},
             label = { Text("From City") },
             readOnly = true,
@@ -114,11 +99,12 @@ fun PassengerTicketingScreen(
         }
         Spacer(modifier = Modifier.height(8.dp))
 
-        // **Short Payment Adjustment**
+        // **Show Short Amount Interface Only for Adult Tickets**
         if (ticketType == "Adult") {
             PriceAdjustmentComponent(shortAmount, price.toInt()) { newAmount ->
                 shortAmount = newAmount
             }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         TicketSummaryCard(ticketCount, luggageCount, departedCount, remainingSeats.value)
@@ -161,6 +147,7 @@ fun PassengerTicketingScreen(
         }
     }
 }
+
 
 @Composable
 fun PriceAdjustmentComponent(
@@ -249,3 +236,4 @@ fun TicketSummaryCard(
     }
 }
 
+*/

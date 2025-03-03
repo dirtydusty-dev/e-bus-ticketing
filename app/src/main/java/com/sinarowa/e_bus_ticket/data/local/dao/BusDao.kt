@@ -12,15 +12,14 @@ interface BusDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBus(bus: Bus)
 
-    @Delete
-    suspend fun deleteBus(bus: Bus)
-
-    @Query("SELECT * FROM buses WHERE id = :busId")
-    fun getBusById(busId: Long): Flow<Bus?>
-
-    @Query("SELECT * FROM buses")
-    fun getAllBuses(): Flow<List<Bus>>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBuses(prices: List<Bus>)
+
+    @Query("SELECT * FROM buses")
+    suspend fun getAllBuses(): List<Bus>
+
+    // Get a bus by its ID (to check if the bus already exists)
+    @Query("SELECT * FROM buses WHERE busId = :busId LIMIT 1")
+    suspend fun getBusById(busId: String): Bus?
+
 }

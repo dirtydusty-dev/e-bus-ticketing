@@ -13,13 +13,14 @@ import com.sinarowa.e_bus_ticket.data.local.entities.*
         Trip::class,         // ✅ Fixed naming: `TripDetails` → `Trip`
         Ticket::class,
         Expense::class,
-        Route::class,        // ✅ Fixed naming: `RouteEntity` → `Route`
-        StationCoordinates::class,
+        RouteEntity::class,        // ✅ Fixed naming: `RouteEntity` → `Route`
+        StationEntity::class,
         Price::class,        // ✅ Fixed naming: `PriceEntity` → `Price`
-        Bus::class,          // ✅ Fixed naming: `BusEntity` → `Bus`
+        Bus::class, // ✅ Fixed naming: `BusEntity` → `Bus`
+        RouteStop::class
     ],
-    version = 5, // ✅ Incremented version for schema changes
-    exportSchema = true // ✅ Export schema for migrations
+    version = 7, // ✅ Incremented version for schema changes
+    exportSchema = false // ✅ Export schema for migrations
 )
 @TypeConverters(Converters::class)
 abstract class BusTicketingDatabase : RoomDatabase() {
@@ -32,6 +33,7 @@ abstract class BusTicketingDatabase : RoomDatabase() {
     abstract fun priceDao(): PriceDao
     abstract fun busDao(): BusDao
     abstract fun reportsDao(): ReportsDao
+    abstract fun routeStopDao(): RouteStopDao
 
     companion object {
         @Volatile
@@ -44,7 +46,7 @@ abstract class BusTicketingDatabase : RoomDatabase() {
                     BusTicketingDatabase::class.java,
                     "bus_ticketing_db"
                 )
-                    //.fallbackToDestructiveMigration() // ✅ Clears DB if schema changes
+                    .fallbackToDestructiveMigration() // ✅ Clears DB if schema changes
                     .build()
                 INSTANCE = instance
                 instance

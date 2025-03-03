@@ -7,21 +7,7 @@ import javax.inject.Inject
 
 class BusRepository @Inject constructor(private val busDao: BusDao) {
 
-    suspend fun insertBus(bus: Bus) {
-        busDao.insertBus(bus)
-    }
-
-    suspend fun deleteBus(bus: Bus) {
-        busDao.deleteBus(bus)
-    }
-
-    fun getBusById(busId: Long): Flow<Bus?> {
-        return busDao.getBusById(busId)
-    }
-
-
-
-    fun getAllBuses(): Flow<List<Bus>> {
+    suspend fun getAllBuses(): List<Bus> {
         return busDao.getAllBuses()
     }
 }

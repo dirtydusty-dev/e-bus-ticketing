@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.data.repository
 
 import com.sinarowa.e_bus_ticket.data.local.dao.PriceDao
@@ -19,3 +20,4 @@ class PriceRepository @Inject constructor(private val priceDao: PriceDao) {
         return priceDao.getPriceForRoute(startStation, stopStation)
     }
 }
+*/

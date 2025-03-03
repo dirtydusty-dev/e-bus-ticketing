@@ -1,33 +1,29 @@
 package com.sinarowa.e_bus_ticket.data.local.dao
 
-
-import androidx.room.*
-import com.sinarowa.e_bus_ticket.data.local.entities.Route
-import kotlinx.coroutines.flow.Flow
-
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
+import com.sinarowa.e_bus_ticket.data.local.entities.StationEntity
 
 @Dao
 interface RouteDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertRoute(route: Route)
+    suspend fun insert(route: RouteEntity)
 
-    @Query("SELECT COUNT(*) FROM routes")
-    suspend fun getRouteCount(): Int
-
-    @Query("SELECT * FROM routes WHERE routeName = :routeName")
-    suspend fun getRouteByName(routeName: String): List<Route>
-
-
-    @Delete
-    suspend fun deleteRoute(route: Route)
-
-    @Query("SELECT * FROM routes WHERE id = :routeId")
-    fun getRouteById(routeId: Long): Flow<Route?>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(routes: List<RouteEntity>)
 
     @Query("SELECT * FROM routes")
-    fun getAllRoutes(): Flow<List<Route>>
+    suspend fun getAllRoutes(): List<RouteEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE) // ✅ Ensures no duplicates
-    suspend fun insertAll(routes: List<Route>)
+    // Get a route by its name
+    @Query("SELECT * FROM routes WHERE routeName = :routeName LIMIT 1")
+    suspend fun getRouteByName(routeName: String): List<RouteEntity>
+
 }
+
+

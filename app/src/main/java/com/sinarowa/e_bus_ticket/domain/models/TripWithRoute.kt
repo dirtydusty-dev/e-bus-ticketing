@@ -1,18 +1,23 @@
 package com.sinarowa.e_bus_ticket.domain.models
 
-import com.sinarowa.e_bus_ticket.data.local.enums.TripStatus
+import androidx.room.Embedded
+import androidx.room.Relation
+import com.sinarowa.e_bus_ticket.data.local.entities.Bus
+import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
+import com.sinarowa.e_bus_ticket.data.local.entities.Trip
 
 data class TripWithRoute(
-    val id: Long,
-    val routeId: Long,
-    val busId: Long,
-    val stopTime: String?,
-    val status: TripStatus,
-    val routeName: String,
-    val busName: String,
-    val busCapacity: Int, // ✅ Add Bus Capacity
-    val startTime: String,
-    val ticketCount: Int = 0, // ✅ Total tickets sold
-    val luggageCount: Int = 0, // ✅ Total luggage tickets
-    val departedCount: Int = 0 // ✅ Tickets where status = ARRIVED
+    @Embedded val trip: Trip, // Embedded Trip entity
+
+    @Relation(
+        parentColumn = "trip_routeId", // Matches the column name in Trip entity
+        entityColumn = "routeId" // Matches the column name in RouteEntity
+    )
+    val route: RouteEntity, // Relationship to RouteEntity
+
+    @Relation(
+        parentColumn = "trip_busId", // Matches the column name in Trip entity
+        entityColumn = "busId" // Matches the column name in Bus entity
+    )
+    val bus: Bus // Relationship to Bus
 )

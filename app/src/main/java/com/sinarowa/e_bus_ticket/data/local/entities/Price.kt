@@ -5,8 +5,8 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "prices")
 data class Price(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val startStation: String,
-    val stopStation: String,
+    @PrimaryKey val priceId: String,
+    val startStationId: String,  // Linked to StopEntity
+    val destinationStationId: String,  // Linked to StopEntity
     val amount: Double
 )

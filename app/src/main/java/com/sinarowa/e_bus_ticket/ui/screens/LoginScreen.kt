@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.ui.screens
 
 import androidx.compose.foundation.Image
@@ -68,7 +69,9 @@ fun LoginScreen(
             if (userId.value.isNotEmpty()) {
                 loginFunction(
                     userId.value,  // ✅ Pass parameters positionally
-                    { /* Success: Navigate to trips */ },
+                    { */
+/* Success: Navigate to trips *//*
+ },
                     { errorMessage.value = it }  // ✅ Pass error message callback
                 )
             } else {
@@ -107,3 +110,4 @@ fun PreviewLoginScreen() {
 
 
 
+*/

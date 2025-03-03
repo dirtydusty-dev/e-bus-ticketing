@@ -2,7 +2,7 @@ package com.sinarowa.e_bus_ticket.data.local.dao
 
 import androidx.room.*
 import com.sinarowa.e_bus_ticket.data.local.entities.Price
-import com.sinarowa.e_bus_ticket.data.local.entities.StationCoordinates
+import com.sinarowa.e_bus_ticket.data.local.entities.StationEntity
 import kotlinx.coroutines.flow.Flow
 
 
@@ -10,14 +10,21 @@ import kotlinx.coroutines.flow.Flow
 interface StationDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertStation(station: StationCoordinates)
-
-    @Query("SELECT * FROM station_coordinates WHERE station = :stationName")
-    fun getStationCoordinates(stationName: String): Flow<StationCoordinates?>
-
-    @Query("SELECT * FROM station_coordinates")
-    fun getAllStations(): Flow<List<StationCoordinates>>
+    suspend fun insertStation(station: StationEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCoordinates(prices: List<StationCoordinates>)
+    suspend fun insertAllStations(stations: List<StationEntity>)
+
+    // Get a station by its name (assuming name is unique)
+    @Query("SELECT * FROM stops WHERE name = :name LIMIT 1")
+    suspend fun getStationByName(name: String): List<StationEntity>
+
+    // Get all stations
+    @Query("SELECT * FROM stops")
+    suspend fun getAllStations(): List<StationEntity>
+
+    // Insert multiple stations at once
+    @Insert
+    suspend fun insertMultipleStations(stations: List<StationEntity>)
+
 }

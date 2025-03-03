@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.ui.screens
 
 import androidx.compose.foundation.background
@@ -16,8 +17,6 @@ import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 import com.sinarowa.e_bus_ticket.data.local.entities.Trip
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
-import com.sinarowa.e_bus_ticket.viewmodel.CreateTripViewModel
-import com.sinarowa.e_bus_ticket.viewmodel.TicketingViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -115,9 +114,11 @@ fun TripDashboardScreen(
     }
 }
 
+*/
 /**
  * ✅ Trip Info Card (Reusable)
- */
+ *//*
+
 @Composable
 fun TripInfoCard(trip: TripWithRoute, ticketCount: Int, luggageCount: Int) {
     Card(
@@ -140,9 +141,11 @@ fun TripInfoCard(trip: TripWithRoute, ticketCount: Int, luggageCount: Int) {
     }
 }
 
+*/
 /**
  * ✅ Reusable Dashboard Button
- */
+ *//*
+
 @Composable
 fun DashboardButton(text: String, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Button(
@@ -162,9 +165,11 @@ fun DashboardButton(text: String, color: Color, icon: androidx.compose.ui.graphi
     }
 }
 
+*/
 /**
  * ✅ End Trip Confirmation Dialog
- */
+ *//*
+
 @Composable
 fun EndTripDialog(
     showEndTripDialog: Boolean,
@@ -214,3 +219,4 @@ fun EndTripDialog(
         }
     )
 }
+*/

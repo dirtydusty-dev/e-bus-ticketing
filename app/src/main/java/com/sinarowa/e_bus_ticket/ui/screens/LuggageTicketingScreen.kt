@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.ui.screens
 
 import androidx.compose.foundation.layout.*
@@ -12,8 +13,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.sinarowa.e_bus_ticket.ui.components.DropdownMenuComponent
-import com.sinarowa.e_bus_ticket.viewmodel.CreateTripViewModel
-import com.sinarowa.e_bus_ticket.viewmodel.TicketingViewModel
 import kotlinx.coroutines.launch
 
 @Composable
@@ -152,3 +151,4 @@ fun LuggageTicketingScreen(
         }
     }
 }
+*/

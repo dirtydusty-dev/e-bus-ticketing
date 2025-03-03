@@ -7,7 +7,8 @@ junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 appcompat = "1.6.1"
 material = "1.10.0"
-compose = "1.1.0"  # Updated Compose version
+compose = "1.1.0"
+runtimeLivedata = "1.7.8"  # Updated Compose version
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -17,7 +18,8 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "compose" }  # Added Compose UI
-androidx-compose-material = { group = "androidx.compose.material", name = "material", version.ref = "compose" }  # Added Compose Material
+androidx-compose-material = { group = "androidx.compose.material", name = "material", version.ref = "compose" }
+androidx-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtimeLivedata" }  # Added Compose Material
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

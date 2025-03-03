@@ -1,3 +1,4 @@
+/*
 package com.sinarowa.e_bus_ticket.domain.usecase
 
 import com.sinarowa.e_bus_ticket.data.repository.LocationRepository
@@ -18,3 +19,4 @@ class GetLocationUseCase @Inject constructor(
         }
     }
 }
+*/

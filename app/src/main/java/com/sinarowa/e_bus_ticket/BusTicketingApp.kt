@@ -24,8 +24,7 @@ class BusTicketingApp : Application() {
 
             if (!isDataSeeded) {
                 CoroutineScope(Dispatchers.IO).launch {
-                    val db = BusTicketingDatabase.getDatabase(applicationContext)
-                    DatabaseSeeder.seedData(db.routeDao(), db.priceDao(), db.stationDao(), db.busDao())
+                    DatabaseSeeder.seedData(db.routeDao(),db.stationDao(),db.routeStopDao(), db.priceDao(), db.busDao())
                     sharedPrefs.edit().putBoolean("is_data_seeded", true).apply()
                 }
             }

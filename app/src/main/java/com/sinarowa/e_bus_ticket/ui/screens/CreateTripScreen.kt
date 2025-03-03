@@ -6,26 +6,28 @@ import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.Bus
-import com.sinarowa.e_bus_ticket.data.local.entities.Route
-import com.sinarowa.e_bus_ticket.viewmodel.CreateTripViewModel
+import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
+import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import kotlinx.coroutines.launch
 
 @Composable
-fun CreateTripScreen(tripViewModel: CreateTripViewModel, navController: NavController) {
-    val routes by tripViewModel.routes.collectAsState(initial = emptyList())
-    val buses by tripViewModel.buses.collectAsState(initial = emptyList())
+fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
+    // Observe routes and buses
+    val routes by viewModel.routes.observeAsState(emptyList())
+    val buses by viewModel.buses.observeAsState(emptyList())
 
-    var selectedRoute by remember { mutableStateOf<Route?>(null) }
+    // Hold selected route and bus
+    var selectedRoute by remember { mutableStateOf<RouteEntity?>(null) }
     var selectedBus by remember { mutableStateOf<Bus?>(null) }
-    var isCreatingTrip by remember { mutableStateOf(false) }
 
-    val coroutineScope = rememberCoroutineScope()
+    val isCreatingTrip by viewModel.isLoading.observeAsState(false)
 
     Column(
         modifier = Modifier
@@ -63,26 +65,11 @@ fun CreateTripScreen(tripViewModel: CreateTripViewModel, navController: NavContr
         // ✅ Create Trip Button
         Button(
             onClick = {
-                coroutineScope.launch {
-                    isCreatingTrip = true
-                    selectedRoute?.let { route ->
-                        selectedBus?.let { bus ->
-                            try {
-                                val tripId = tripViewModel.createTrip(route.id, bus.id) // Get trip ID
-                                if (tripId != null) {
-                                    // If trip is created, navigate away
-                                    navController.popBackStack()
-                                } else {
-                                    // Handle case when trip is not created
-                                    isCreatingTrip = false
-                                }
-                            } catch (e: Exception) {
-                                // Handle error (e.g., log or show snackbar)
-                                isCreatingTrip = false
-                            }
-                        }
+                selectedRoute?.let { route ->
+                    selectedBus?.let { bus ->
+                        viewModel.createTrip(route, bus)
+                        navController.popBackStack() // Navigate after creating trip
                     }
-                    isCreatingTrip = false
                 }
             },
             enabled = selectedRoute != null && selectedBus != null && !isCreatingTrip,
@@ -98,6 +85,7 @@ fun CreateTripScreen(tripViewModel: CreateTripViewModel, navController: NavContr
 
     }
 }
+
 
 /**
  * ✅ Reusable Dropdown Selector Component (Fixed for Real-time Updates)

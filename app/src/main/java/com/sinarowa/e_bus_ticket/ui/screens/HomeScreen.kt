@@ -4,8 +4,6 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -19,19 +17,40 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
-import com.sinarowa.e_bus_ticket.viewmodel.CreateTripViewModel
-import kotlinx.coroutines.delay
+import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
+import androidx.compose.runtime.livedata.observeAsState
+
 
 @Composable
-fun HomeScreen(tripViewModel: CreateTripViewModel, navController: NavController) {
-    // Collect state from the ViewModel
-    val trips by tripViewModel.activeTrips.collectAsState()
-    val isLoading by tripViewModel.isLoading.collectAsState()
+fun HomeScreen(
+    viewModel: TripViewModel,
+    navController: NavController,
+) {
+    // Observe active trip and error message
+    val activeTrip by viewModel.activeTrip.observeAsState()
+    val errorMessage by viewModel.errorMessage.observeAsState()
+    val isLoading by viewModel.isLoading.observeAsState(false) // Loading state
+
+    // Load active trip when the screen is launched
+    LaunchedEffect(Unit) {
+        viewModel.loadActiveTrip() // Fetch the active trip
+    }
+
+    // Animation for blinking "No Active Trip"
+    val infiniteTransition = rememberInfiniteTransition()
+    val blinkAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Available Trips", color = Color.White) },
+                title = { Text("Active Trip", color = Color.White) },
                 backgroundColor = Color(0xFF1565C0),
                 navigationIcon = {
                     var menuExpanded by remember { mutableStateOf(false) }
@@ -71,23 +90,118 @@ fun HomeScreen(tripViewModel: CreateTripViewModel, navController: NavController)
         ) {
             when {
                 isLoading -> {
-                    // Show loading indicator while trips are being fetched
+                    // Show loading indicator while fetching active trip
                     CircularProgressIndicator(color = Color(0xFF1565C0))
                 }
-                trips.isEmpty() -> {
-                    // If no trips are available, show empty state
-                    EmptyState(navController)
-                }
-                else -> {
-                    // Show trips in a LazyColumn when available
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)
-                    ) {
-                        items(trips) { trip ->
-                            TripItem(trip, onClick = { navController.navigate("tripDashboard/${trip.id}") })
+                activeTrip != null -> {
+                    // Move the trip item to the top when there is an active trip
+                    activeTrip?.let { tripWithRoute: TripWithRoute ->
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Top,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Active trip at the top
+                            TripItem(
+                                tripWithRoute = tripWithRoute,
+                                onClick = { navController.navigate("tripDashboard/${tripWithRoute.trip.tripId}") }
+                            )
+
+                            // Rest of the content can be displayed here (error message etc.)
                         }
                     }
                 }
+                else -> {
+                    // Show "No Active Trip" message and button to create a trip
+                    EmptyState(navController)
+                }
+            }
+
+            // Show error message if any
+            errorMessage?.let {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = "Error: $it", color = Color.Red)
+            }
+        }
+    }
+}
+
+
+@Composable
+fun TripItem(tripWithRoute: TripWithRoute, onClick: (String) -> Unit) {
+    val infiniteTransition = rememberInfiniteTransition()
+    val blinkAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clickable { onClick(tripWithRoute.trip.tripId) },
+        backgroundColor = Color.White,
+        elevation = 4.dp,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.LocationOn, contentDescription = "Route", tint = Color(0xFF1565C0))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Trip: ${tripWithRoute.route.routeName}",  // ✅ Using `routeName` from `TripWithRoute`
+                        style = MaterialTheme.typography.h6,
+                        color = Color(0xFF1565C0)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.DirectionsBus, contentDescription = "Bus", tint = Color.Gray)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            "Bus: ${tripWithRoute.bus.busName}",
+                            style = MaterialTheme.typography.body2,
+                            color = Color.DarkGray
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Start: ${tripWithRoute.trip.startTime}",
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            color = Color.Gray,
+                            fontSize = MaterialTheme.typography.caption.fontSize
+                        )
+                    }
+                }
+            }
+
+            // ✅ Blinking Green Dot and "Active" label
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(Color(0xFF00C853).copy(alpha = blinkAlpha), shape = RoundedCornerShape(50))
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Active",
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    color = Color(0xFF00C853),
+                    style = MaterialTheme.typography.body2
+                )
             }
         }
     }
@@ -121,86 +235,6 @@ fun EmptyState(navController: NavController) {
             elevation = ButtonDefaults.elevation(6.dp)
         ) {
             Text("Create New Trip", color = Color.Black)
-        }
-    }
-}
-
-@Composable
-fun TripItem(trip: TripWithRoute, onClick: (String) -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition()
-    val blinkAlpha by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable { onClick(trip.id.toString()) },
-        backgroundColor = Color.White,
-        elevation = 4.dp,
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.LocationOn, contentDescription = "Route", tint = Color(0xFF1565C0))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Trip: ${trip.routeName}",  // ✅ Using `routeName` from `TripWithRoute`
-                        style = MaterialTheme.typography.h6,
-                        color = Color(0xFF1565C0)
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.DirectionsBus, contentDescription = "Bus", tint = Color.Gray)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            "Bus: ${trip.busName}",
-                            style = MaterialTheme.typography.body2,
-                            color = Color.DarkGray
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Start: ${trip.startTime}",
-                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                            color = Color.Gray,
-                            fontSize = MaterialTheme.typography.caption.fontSize
-                        )
-                    }
-                }
-            }
-
-            // ✅ Blinking Green Dot and "Active" label
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .background(Color(0xFF00C853).copy(alpha = blinkAlpha), shape = RoundedCornerShape(50))
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Active",
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                    color = Color(0xFF00C853),
-                    style = MaterialTheme.typography.body2
-                )
-            }
         }
     }
 }

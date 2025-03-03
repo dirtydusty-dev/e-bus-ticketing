@@ -11,12 +11,11 @@ interface PriceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPrice(price: Price)
 
-    @Delete
-    suspend fun deletePrice(price: Price)
-
-    @Query("SELECT amount FROM prices WHERE startStation = :startStation AND stopStation = :stopStation")
-    fun getPriceForRoute(startStation: String, stopStation: String): Flow<Double?>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllPrices(prices: List<Price>)
+
+    @Insert
     suspend fun insertPrices(prices: List<Price>)
+
+
 }
