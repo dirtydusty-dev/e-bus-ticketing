@@ -24,4 +24,10 @@ interface TripDao {
 
     @Query("UPDATE trips SET syncStatus = :status WHERE tripId = :tripId")
     suspend fun updateSyncStatus(tripId: String, status: SyncStatus)
+
+    @Query("SELECT * FROM trips WHERE tripId = :tripId")
+    suspend fun getTripById(tripId: String): Trip?
+
+    @Update
+    suspend fun updateTripStatus(trip: Trip)
 }

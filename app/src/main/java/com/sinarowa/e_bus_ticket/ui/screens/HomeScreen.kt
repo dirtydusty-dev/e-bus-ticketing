@@ -98,7 +98,7 @@ fun HomeScreen(
                             // Active trip at the top
                             TripItem(
                                 tripWithRoute = tripWithRoute,
-                                onClick = { navController.navigate("tripDashboard/${tripWithRoute.trip.tripId}") }
+                                onClick = { navController.navigate("tripDashboard") }
                             )
                         }
                     }

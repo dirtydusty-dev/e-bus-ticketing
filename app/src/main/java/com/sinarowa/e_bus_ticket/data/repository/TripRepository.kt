@@ -70,5 +70,12 @@ class TripRepository @Inject constructor(
         tripDao.updateSyncStatus(tripId,SyncStatus.SYNCED)
     }
 
+    suspend fun getTripById(tripId: String): Trip? {
+        return tripDao.getTripById(tripId)
+    }
+
+    suspend fun updateTripStatus(trip: Trip) {
+        tripDao.updateTripStatus(trip)
+    }
 
 }

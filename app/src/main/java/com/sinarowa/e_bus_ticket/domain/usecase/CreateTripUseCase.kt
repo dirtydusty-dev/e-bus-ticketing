@@ -18,6 +18,8 @@ import javax.inject.Inject
 import java.text.SimpleDateFormat
 import java.util.*
 import android.util.Log
+import com.sinarowa.e_bus_ticket.data.repository.ExpenseRepository
+import com.sinarowa.e_bus_ticket.data.repository.TicketRepository
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 
 class CreateTripUseCase @Inject constructor(
@@ -25,7 +27,9 @@ class CreateTripUseCase @Inject constructor(
     private val tripSyncQueueRepository: TripSyncQueueRepository,
     private val apiService: ApiService,
     private val routeRepository: RouteRepository,
-    private val busRepository: BusRepository
+    private val busRepository: BusRepository,
+    private val ticketRepository: TicketRepository,
+    private val expenseRepository: ExpenseRepository
 ) {
 
     suspend fun execute(routeId: String, busId: String): Result<TripWithRoute> {
@@ -72,7 +76,8 @@ class CreateTripUseCase @Inject constructor(
         Log.d("CreateTripUseCase", "Fetched route and bus data. Creating TripWithRoute.")
 
         // Create a TripWithRoute object
-        val tripWithRoute = TripWithRoute(trip = trip, route = route, bus = bus)
+        val tripWithRoute = TripWithRoute(trip = trip, route = route, bus = bus,tickets = emptyList(), // Initialize with empty list for tickets
+            expenses = emptyList())
 
         // Save the TripWithRoute to the database
         tripRepository.createTrip(tripWithRoute)

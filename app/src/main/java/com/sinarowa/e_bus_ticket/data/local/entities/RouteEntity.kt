@@ -5,6 +5,9 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "routes")
 data class RouteEntity(
-    @PrimaryKey val routeId: String,
-    val routeName: String,
-)
+    @PrimaryKey val routeId: String = "",
+    val routeName: String = ""
+) {
+    // No-argument constructor for Room
+    constructor() : this("", "")
+}

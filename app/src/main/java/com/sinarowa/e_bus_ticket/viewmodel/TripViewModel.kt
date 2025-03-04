@@ -9,6 +9,7 @@ import com.sinarowa.e_bus_ticket.data.repository.BusRepository
 import com.sinarowa.e_bus_ticket.data.repository.RouteRepository
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import com.sinarowa.e_bus_ticket.domain.usecase.CreateTripUseCase
+import com.sinarowa.e_bus_ticket.domain.usecase.EndTripUseCase
 import com.sinarowa.e_bus_ticket.domain.usecase.GetActiveTripsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -20,7 +21,8 @@ class TripViewModel @Inject constructor(
     private val createTripUseCase: CreateTripUseCase,
     private val getActiveTripUseCase: GetActiveTripsUseCase,
     private val routeRepository: RouteRepository,
-    private val busRepository: BusRepository
+    private val busRepository: BusRepository,
+    private val endTripUseCase: EndTripUseCase
 ) : ViewModel() {
 
     private val _activeTrip = MutableLiveData<TripWithRoute?>()
@@ -51,6 +53,17 @@ class TripViewModel @Inject constructor(
         loadBuses()
     }
 
+    fun endTrip(tripId: String) {
+        viewModelScope.launch {
+            val result = endTripUseCase.execute(tripId)
+            result.onSuccess {
+                // Handle success (e.g. show a success message)
+            }.onFailure {
+                _errorMessage.value = "Trip could not be closed"
+                // Handle failure (e.g. show an error message)
+            }
+        }
+    }
 
 
     // Function to fetch the active trip

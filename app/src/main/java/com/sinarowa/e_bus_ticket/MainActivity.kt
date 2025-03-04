@@ -4,11 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.sinarowa.e_bus_ticket.ui.screens.CreateTripScreen
 import com.sinarowa.e_bus_ticket.ui.screens.HomeScreen
+import com.sinarowa.e_bus_ticket.ui.screens.TripDashboardScreen
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -26,7 +29,14 @@ class MainActivity : ComponentActivity() {
             NavHost(navController, startDestination = "home") {
                 composable("home") { HomeScreen(tripViewModel, navController) }
                 composable("createTrip") { CreateTripScreen(tripViewModel, navController) }
+
+                // Add the TripDashboardScreen route without the 'tripId'
+                composable("tripDashboard") {
+                    TripDashboardScreen(navController = navController, tripViewModel = tripViewModel)
+                }
             }
         }
     }
 }
+
+

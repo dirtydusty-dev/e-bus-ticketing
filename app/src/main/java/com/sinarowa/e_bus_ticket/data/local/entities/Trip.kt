@@ -13,25 +13,28 @@ import com.sinarowa.e_bus_ticket.data.local.enums.TripStatus
     foreignKeys = [
         ForeignKey(
             entity = RouteEntity::class,
-            parentColumns = ["routeId"], // Parent column in RouteEntity
-            childColumns = ["trip_routeId"], // Child column in Trip
+            parentColumns = ["routeId"],
+            childColumns = ["trip_routeId"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
             entity = Bus::class,
-            parentColumns = ["busId"], // Parent column in Bus
-            childColumns = ["trip_busId"], // Child column in Trip
+            parentColumns = ["busId"],
+            childColumns = ["trip_busId"],
             onDelete = ForeignKey.CASCADE
         )
     ],
     indices = [Index(value = ["trip_routeId"]), Index(value = ["trip_busId"])]
 )
 data class Trip(
-    @PrimaryKey val tripId: String,
-    @ColumnInfo(name = "trip_routeId") val routeId: String, // Matches parentColumn in @Relation
-    @ColumnInfo(name = "trip_busId") val busId: String, // Matches parentColumn in @Relation
-    val startTime: String,
-    val endTime: String?,
-    val status: TripStatus,
-    val syncStatus: SyncStatus = SyncStatus.PENDING // New field to track sync status
-)
+    @PrimaryKey val tripId: String = "",
+    @ColumnInfo(name = "trip_routeId") val routeId: String = "",
+    @ColumnInfo(name = "trip_busId") val busId: String = "",
+    val startTime: String = "",
+    var endTime: String? = null,
+    var status: TripStatus = TripStatus.IN_PROGRESS,
+    var syncStatus: SyncStatus = SyncStatus.PENDING
+) {
+    // No-argument constructor for Room
+    constructor() : this("", "", "", "", null, TripStatus.IN_PROGRESS, SyncStatus.PENDING)
+}
