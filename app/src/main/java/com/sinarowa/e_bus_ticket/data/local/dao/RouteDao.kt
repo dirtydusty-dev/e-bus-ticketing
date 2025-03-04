@@ -24,6 +24,10 @@ interface RouteDao {
     @Query("SELECT * FROM routes WHERE routeName = :routeName LIMIT 1")
     suspend fun getRouteByName(routeName: String): List<RouteEntity>
 
+    // Get route by id
+    @Query("SELECT * FROM routes WHERE routeId = :routeId LIMIT 1")
+    suspend fun getRouteById(routeId: String): RouteEntity
+
 }
 
 

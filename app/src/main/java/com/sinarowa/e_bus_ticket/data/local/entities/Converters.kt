@@ -3,6 +3,7 @@ package com.sinarowa.e_bus_ticket.data.local.entities
 import androidx.room.TypeConverter
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.sinarowa.e_bus_ticket.data.local.enums.SyncStatus
 import com.sinarowa.e_bus_ticket.data.local.enums.TicketStatus
 import com.sinarowa.e_bus_ticket.data.local.enums.TripStatus
 
@@ -23,5 +24,11 @@ class Converters {
 
     @TypeConverter
     fun toTripStatus(value: String): TripStatus = enumValueOf(value)
+
+    @TypeConverter
+    fun fromSyncStatus(value: SyncStatus): String = value.name
+
+    @TypeConverter
+    fun toSyncStatus(value: String): SyncStatus = enumValueOf(value)
 
 }

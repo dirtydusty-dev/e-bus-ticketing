@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.sinarowa.e_bus_ticket.data.local.enums.SyncStatus
 import com.sinarowa.e_bus_ticket.data.local.enums.TripStatus
 
 @Entity(
@@ -31,5 +32,6 @@ data class Trip(
     @ColumnInfo(name = "trip_busId") val busId: String, // Matches parentColumn in @Relation
     val startTime: String,
     val endTime: String?,
-    val status: TripStatus
+    val status: TripStatus,
+    val syncStatus: SyncStatus = SyncStatus.PENDING // New field to track sync status
 )

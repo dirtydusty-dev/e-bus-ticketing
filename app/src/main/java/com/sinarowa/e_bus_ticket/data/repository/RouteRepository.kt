@@ -14,4 +14,14 @@ class RouteRepository @Inject constructor(
     suspend fun getAllRoutes(): List<RouteEntity> {
         return routeDao.getAllRoutes()
     }
+
+    // Get a route by its name
+    suspend fun getRouteByName(routeName: String): List<RouteEntity> {
+        return routeDao.getRouteByName(routeName)
+    }
+
+    // Get a route by its ID
+    suspend fun getRouteById(routeId: String): RouteEntity {
+        return routeDao.getRouteById(routeId)
+    }
 }

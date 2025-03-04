@@ -55,6 +55,9 @@ object AppModule {
     @Provides
     fun provideRouteStopDao(database: BusTicketingDatabase): RouteStopDao = database.routeStopDao()
 
+    @Provides
+    fun provideTripSyncQueueDao(database: BusTicketingDatabase): TripSyncQueueDao = database.tripSyncQueueDao()
+
 
 
 

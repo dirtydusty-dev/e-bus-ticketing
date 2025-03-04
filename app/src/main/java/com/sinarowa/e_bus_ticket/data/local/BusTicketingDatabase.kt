@@ -17,9 +17,10 @@ import com.sinarowa.e_bus_ticket.data.local.entities.*
         StationEntity::class,
         Price::class,        // ✅ Fixed naming: `PriceEntity` → `Price`
         Bus::class, // ✅ Fixed naming: `BusEntity` → `Bus`
-        RouteStop::class
+        RouteStop::class,
+        TripSyncQueue::class
     ],
-    version = 7, // ✅ Incremented version for schema changes
+    version = 8, // ✅ Incremented version for schema changes
     exportSchema = false // ✅ Export schema for migrations
 )
 @TypeConverters(Converters::class)
@@ -34,6 +35,7 @@ abstract class BusTicketingDatabase : RoomDatabase() {
     abstract fun busDao(): BusDao
     abstract fun reportsDao(): ReportsDao
     abstract fun routeStopDao(): RouteStopDao
+    abstract fun tripSyncQueueDao(): TripSyncQueueDao
 
     companion object {
         @Volatile

@@ -20,6 +20,9 @@ interface BusDao {
 
     // Get a bus by its ID (to check if the bus already exists)
     @Query("SELECT * FROM buses WHERE busId = :busId LIMIT 1")
-    suspend fun getBusById(busId: String): Bus?
+    suspend fun getBusById(busId: String): Bus
+
+    @Query("SELECT * FROM buses WHERE busNumber = :busNumber LIMIT 1")
+    suspend fun getBusByRegistrationNumber(busNumber: String): Bus?
 
 }

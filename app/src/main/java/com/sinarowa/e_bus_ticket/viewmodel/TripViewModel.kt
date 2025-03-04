@@ -27,8 +27,8 @@ class TripViewModel @Inject constructor(
     val activeTrip: LiveData<TripWithRoute?> get() = _activeTrip
 
     // LiveData to expose the result of the trip creation
-    private val _createTripResult = MutableLiveData<Result<Trip>>()
-    val createTripResult: LiveData<Result<Trip>> get() = _createTripResult
+    private val _createTripResult = MutableLiveData<Result<TripWithRoute>>()
+    val createTripResult: LiveData<Result<TripWithRoute>> get() = _createTripResult
 
     // LiveData for handling UI loading state
     private val _isLoading = MutableLiveData<Boolean>()
@@ -52,17 +52,22 @@ class TripViewModel @Inject constructor(
     }
 
 
+
     // Function to fetch the active trip
     fun loadActiveTrip() {
+        _isLoading.value = true // Start loading
         viewModelScope.launch {
             try {
-                val trip = getActiveTripUseCase.execute()
-                _activeTrip.value = trip
+                val trip = getActiveTripUseCase.execute()  // Fetch the active trip
+                _activeTrip.value = trip  // Set the active trip
             } catch (e: Exception) {
-                _errorMessage.value = "Error fetching active trip: ${e.message}"
+                _errorMessage.value = "Error fetching active trip: ${e.message}"  // Handle errors
+            } finally {
+                _isLoading.value = false  // End loading once the process is complete
             }
         }
     }
+
 
 
     private fun loadRoutes() {
@@ -98,10 +103,18 @@ class TripViewModel @Inject constructor(
                 // Post the result to LiveData
                 _createTripResult.value = result
 
-                if (result.isFailure) {
+                if (result.isSuccess) {
+                    // Set the active trip immediately after creation
+                    val tripWithRoute = result.getOrNull()
+                    if (tripWithRoute != null) {
+                        _activeTrip.value = tripWithRoute
+                        loadActiveTrip()
+                    }
+                } else {
                     // Handle failure case
                     _errorMessage.value = result.exceptionOrNull()?.message
                 }
+
             } catch (e: Exception) {
                 // Handle any exceptions during the trip creation process
                 _errorMessage.value = "Error: ${e.message}"

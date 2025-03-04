@@ -10,6 +10,6 @@ class GetActiveTripsUseCase @Inject constructor(private val tripRepository: Trip
 
     // This method now returns a Flow of TripWithRoute, which combines Trip and Route data
     suspend fun execute(): TripWithRoute? {
-        return tripRepository.getActiveTripWithRoute(TripStatus.IN_PROGRESS) // Fetches the active trip along with its route
+        return tripRepository.getActiveTripWithRoute() // Fetches the active trip along with its route
     }
 }

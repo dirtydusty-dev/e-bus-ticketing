@@ -2,6 +2,7 @@ package com.sinarowa.e_bus_ticket.data.local.dao
 
 import androidx.room.*
 import com.sinarowa.e_bus_ticket.data.local.entities.Trip
+import com.sinarowa.e_bus_ticket.data.local.enums.SyncStatus
 import com.sinarowa.e_bus_ticket.data.local.enums.TripStatus
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import kotlinx.coroutines.flow.Flow
@@ -21,4 +22,6 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE status = :status LIMIT 1")
     suspend fun getActiveTripWithRoute(status: TripStatus): TripWithRoute?
 
+    @Query("UPDATE trips SET syncStatus = :status WHERE tripId = :tripId")
+    suspend fun updateSyncStatus(tripId: String, status: SyncStatus)
 }

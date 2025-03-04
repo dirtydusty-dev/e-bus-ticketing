@@ -19,6 +19,7 @@ import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import androidx.compose.runtime.livedata.observeAsState
+import kotlinx.coroutines.delay
 
 
 @Composable
@@ -29,23 +30,16 @@ fun HomeScreen(
     // Observe active trip and error message
     val activeTrip by viewModel.activeTrip.observeAsState()
     val errorMessage by viewModel.errorMessage.observeAsState()
-    val isLoading by viewModel.isLoading.observeAsState(false) // Loading state
+    val isLoading by viewModel.isLoading.observeAsState(true) // Loading state
 
+    // Track the loading state for avoiding flickering
     // Load active trip when the screen is launched
-    LaunchedEffect(Unit) {
-        viewModel.loadActiveTrip() // Fetch the active trip
+    LaunchedEffect(key1 = "HomeScreenReload") {
+        // Simulate a 3-second loading period
+        delay(2000) // Delay for 3 seconds
+        viewModel.loadActiveTrip() // Fetch the active trip after the delay
     }
 
-    // Animation for blinking "No Active Trip"
-    val infiniteTransition = rememberInfiniteTransition()
-    val blinkAlpha by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.3f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
 
     Scaffold(
         topBar = {
@@ -88,9 +82,9 @@ fun HomeScreen(
                 .background(Color.White),
             contentAlignment = Alignment.Center
         ) {
+            // Only show "No Active Trip" message once data is loaded
             when {
                 isLoading -> {
-                    // Show loading indicator while fetching active trip
                     CircularProgressIndicator(color = Color(0xFF1565C0))
                 }
                 activeTrip != null -> {
@@ -106,8 +100,6 @@ fun HomeScreen(
                                 tripWithRoute = tripWithRoute,
                                 onClick = { navController.navigate("tripDashboard/${tripWithRoute.trip.tripId}") }
                             )
-
-                            // Rest of the content can be displayed here (error message etc.)
                         }
                     }
                 }
