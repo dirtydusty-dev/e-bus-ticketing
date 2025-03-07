@@ -1,5 +1,9 @@
 package com.sinarowa.e_bus_ticket.domain.usecase
 
+import android.annotation.SuppressLint
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+
 import com.google.gson.Gson
 import com.sinarowa.e_bus_ticket.data.dto.CreateTripRequest
 import com.sinarowa.e_bus_ticket.data.local.entities.Trip
@@ -18,9 +22,20 @@ import javax.inject.Inject
 import java.text.SimpleDateFormat
 import java.util.*
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequest
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.sinarowa.e_bus_ticket.data.repository.ExpenseRepository
 import com.sinarowa.e_bus_ticket.data.repository.TicketRepository
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
+import com.sinarowa.e_bus_ticket.worker.SyncTripWorker
+import com.sinarowa.e_bus_ticket.worker.WorkerScheduler
+import timber.log.Timber
+import java.util.concurrent.TimeUnit
 
 class CreateTripUseCase @Inject constructor(
     private val tripRepository: TripRepository,
@@ -28,8 +43,7 @@ class CreateTripUseCase @Inject constructor(
     private val apiService: ApiService,
     private val routeRepository: RouteRepository,
     private val busRepository: BusRepository,
-    private val ticketRepository: TicketRepository,
-    private val expenseRepository: ExpenseRepository
+    @ApplicationContext private val context: Context,
 ) {
 
     suspend fun execute(routeId: String, busId: String): Result<TripWithRoute> {
@@ -89,20 +103,29 @@ class CreateTripUseCase @Inject constructor(
         Log.d("CreateTripUseCase", "Sending request to API: $tripRequest")
 
         // Try to sync the trip with the server
-        val syncResult = syncTripWithServer(tripWithRoute)
+        //val syncResult = syncTripWithServer(tripWithRoute)
 
         // Debugging log
-        Log.d("CreateTripUseCase", "Sync result: $syncResult")
+        //Log.d("CreateTripUseCase", "Sync result: $syncResult")
 
-        return if (syncResult.isSuccess) {
+        queueTripForSync(tripWithRoute)
+
+        return Result.success(tripWithRoute)
+
+       /* return if (syncResult.isSuccess) {
             Log.d("CreateTripUseCase", "Trip synced successfully with server.")
             Result.success(tripWithRoute)
         } else {
+
             // Queue the trip for later sync if failed to sync with the server
             queueTripForSync(tripWithRoute)
+
+            // 3b. Server responded with an error (trip not created)
+            Timber.w("Trip ${tripId} API call failed (server error). Will sync via WorkManager.")
+            // (Trip remains unsynced in DB; it’s already in the queue from above)
             Log.d("CreateTripUseCase", "Sync failed, queued trip for later sync.")
             Result.failure(Exception("Trip created locally, but sync failed"))
-        }
+        }*/
     }
 
     private suspend fun syncTripWithServer(trip: TripWithRoute): Result<TripWithRoute> {
@@ -137,7 +160,7 @@ class CreateTripUseCase @Inject constructor(
         Log.d("CreateTripUseCase", "Queuing trip for later sync...")
 
         val tripRequestJson = Gson().toJson(createTripRequestFromTrip(trip))
-        val tripSyncQueue = TripSyncQueue(tripRequestJson = tripRequestJson, status = "PENDING")
+        val tripSyncQueue = TripSyncQueue(tripRequestJson = tripRequestJson, status = "PENDING", tripId = trip.trip.tripId)
 
         // Insert the trip into the queue
         tripSyncQueueRepository.insertTripSyncQueue(tripSyncQueue)
@@ -160,4 +183,30 @@ class CreateTripUseCase @Inject constructor(
         val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
         return "TRIP_${routeId}_${busId}_${sdf.format(Date(timestamp))}"
     }
+
+    // This will enqueue the sync work periodically regardless of internet
+    @SuppressLint("InvalidPeriodicWorkRequestInterval")
+    private fun triggerPeriodicSync() {
+        Log.d("CreateTripUseCase", "Triggering periodic sync work...")
+
+        /*// Define constraints (like requiring internet connection)
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED) // Work will only run if network is connected
+            .build()*/
+
+        // Create the periodic work request (runs every 5 minutes)
+        val syncTripWorkerRequest = PeriodicWorkRequest.Builder(SyncTripWorker::class.java, 1, TimeUnit.MINUTES) // 5-minute interval
+            //.setConstraints(constraints) // Apply constraints
+            .build()
+
+        // Enqueue the periodic work request with a unique name to ensure only one instance runs
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "syncTrips",  // Work name (ensure it's unique)
+            ExistingPeriodicWorkPolicy.KEEP,  // Keep existing work if already scheduled
+            syncTripWorkerRequest
+        )
+
+        Log.d("CreateTripUseCase", "Periodic sync work triggered and enqueued.")
+    }
+
 }

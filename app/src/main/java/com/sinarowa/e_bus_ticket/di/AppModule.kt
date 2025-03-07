@@ -1,9 +1,14 @@
 package com.sinarowa.e_bus_ticket.di
 
+import android.app.Application
 import android.content.Context
+import androidx.hilt.work.HiltWorkerFactory
 import androidx.room.Room
+import androidx.work.WorkManager
 import com.sinarowa.e_bus_ticket.data.local.BusTicketingDatabase
 import com.sinarowa.e_bus_ticket.data.local.dao.*
+import com.sinarowa.e_bus_ticket.worker.SyncTripWorkerFactory
+import com.sinarowa.e_bus_ticket.worker.WorkerScheduler
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -59,6 +64,25 @@ object AppModule {
     fun provideTripSyncQueueDao(database: BusTicketingDatabase): TripSyncQueueDao = database.tripSyncQueueDao()
 
 
+    @Provides
+    @Singleton
+    fun provideContext(app: Application): Context = app.applicationContext
+
+    @Provides
+    fun provideWorkManager(context: Context): WorkManager {
+        return WorkManager.getInstance(context)
+    }
+
+    @Provides
+    fun provideWorkerScheduler(workManager: WorkManager): WorkerScheduler {
+        return WorkerScheduler(workManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSyncTripWorkerFactory(factory: HiltWorkerFactory): SyncTripWorkerFactory {
+        return SyncTripWorkerFactory(factory)
+    }
 
 
 }

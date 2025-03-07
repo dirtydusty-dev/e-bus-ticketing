@@ -17,7 +17,7 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("http://10.255.12.105:8100/")  // Put the API base URL here
+            .baseUrl("http://192.168.160.242:8100/")  // Put the API base URL here
             .addConverterFactory(GsonConverterFactory.create())  // Gson converter for JSON to Object conversion
             .build()
     }

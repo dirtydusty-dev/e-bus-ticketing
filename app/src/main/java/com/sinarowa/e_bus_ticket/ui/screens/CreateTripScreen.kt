@@ -10,6 +10,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.Bus
@@ -23,6 +24,7 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
     val routes by viewModel.routes.observeAsState(emptyList())
     val buses by viewModel.buses.observeAsState(emptyList())
 
+    val context = LocalContext.current
     // Hold selected route and bus
     var selectedRoute by remember { mutableStateOf<RouteEntity?>(null) }
     var selectedBus by remember { mutableStateOf<Bus?>(null) }
@@ -67,7 +69,7 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
             onClick = {
                 selectedRoute?.let { route ->
                     selectedBus?.let { bus ->
-                        viewModel.createTrip(route, bus)
+                        viewModel.createTrip(route, bus, context)
                         navController.popBackStack() // Navigate after creating trip
                     }
                 }

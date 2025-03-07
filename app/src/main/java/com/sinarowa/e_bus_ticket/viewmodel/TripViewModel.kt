@@ -1,5 +1,6 @@
 package com.sinarowa.e_bus_ticket.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.*
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
 import com.sinarowa.e_bus_ticket.data.local.entities.Bus
@@ -106,7 +107,7 @@ class TripViewModel @Inject constructor(
     }
 
     // Function to create a new trip
-    fun createTrip(route: RouteEntity, bus: Bus) {
+    fun createTrip(route: RouteEntity, bus: Bus, context: Context) {
         _isLoading.value = true
         viewModelScope.launch {
             try {
