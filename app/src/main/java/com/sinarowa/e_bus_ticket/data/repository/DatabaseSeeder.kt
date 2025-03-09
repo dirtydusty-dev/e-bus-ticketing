@@ -34,11 +34,11 @@ object DatabaseSeeder {
 
             // ✅ Insert Stations
             val stations = listOf(
-                StationEntity(stationId = "1", name = "Harare CBD", latitude = -17.8315, longitude = 31.0474),
+                StationEntity(stationId = "5", name = "Harare CBD", latitude = -17.8315, longitude = 31.0474),
                 StationEntity(stationId = "2", name = "Causeway", latitude = -17.8245, longitude = 31.0518),
                 StationEntity(stationId = "3", name = "Milton Park", latitude = -17.8147, longitude = 31.0360),
                 StationEntity(stationId = "4", name = "Belvedere", latitude = -17.8281, longitude = 31.0198),
-                StationEntity(stationId = "5", name = "Southerton", latitude = -17.8682, longitude = 31.0147)
+                StationEntity(stationId = "1", name = "Southerton", latitude = -17.8682, longitude = 31.0147)
             )
 
             for (station in stations) {

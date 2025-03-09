@@ -4,7 +4,7 @@ import androidx.room.*
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 import com.sinarowa.e_bus_ticket.data.local.enums.SyncStatus
 import com.sinarowa.e_bus_ticket.domain.models.PriceWithTicket
-import kotlinx.coroutines.flow.Flow
+import com.sinarowa.e_bus_ticket.data.local.enums.TicketStatus
 
 @Dao
 interface TicketDao {
@@ -18,5 +18,11 @@ interface TicketDao {
 
     @Update
     suspend fun updateTicketSyncStatus(ticket: Ticket)
+
+    @Insert
+    suspend fun insert(ticket: Ticket)
+
+    @Query("SELECT COUNT(*) FROM tickets WHERE ticket_tripId = :tripId and status = :status")
+    suspend fun getTicketCount(tripId: String, status: TicketStatus): Int
 
 }

@@ -7,6 +7,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
 import com.sinarowa.e_bus_ticket.data.local.entities.StationEntity
+import com.sinarowa.e_bus_ticket.domain.models.RouteWithStations
 
 @Dao
 interface RouteDao {
@@ -27,6 +28,10 @@ interface RouteDao {
     // Get route by id
     @Query("SELECT * FROM routes WHERE routeId = :routeId LIMIT 1")
     suspend fun getRouteById(routeId: String): RouteEntity
+
+    @Transaction
+    @Query("SELECT * FROM routes WHERE routeId = :routeId")
+    suspend fun getRouteWithStops(routeId: String): RouteWithStations
 
 }
 

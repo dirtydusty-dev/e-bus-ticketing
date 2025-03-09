@@ -4,10 +4,9 @@ import android.content.Context
 import androidx.lifecycle.*
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
 import com.sinarowa.e_bus_ticket.data.local.entities.Bus
-import com.sinarowa.e_bus_ticket.data.local.entities.Trip
-import com.sinarowa.e_bus_ticket.data.local.enums.TripStatus
 import com.sinarowa.e_bus_ticket.data.repository.BusRepository
 import com.sinarowa.e_bus_ticket.data.repository.RouteRepository
+import com.sinarowa.e_bus_ticket.data.repository.TripRepository
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import com.sinarowa.e_bus_ticket.domain.usecase.CreateTripUseCase
 import com.sinarowa.e_bus_ticket.domain.usecase.EndTripUseCase
@@ -19,15 +18,17 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TripViewModel @Inject constructor(
+    private val tripRepository: TripRepository,
     private val createTripUseCase: CreateTripUseCase,
-    private val getActiveTripUseCase: GetActiveTripsUseCase,
     private val routeRepository: RouteRepository,
     private val busRepository: BusRepository,
     private val endTripUseCase: EndTripUseCase
 ) : ViewModel() {
 
-    private val _activeTrip = MutableLiveData<TripWithRoute?>()
-    val activeTrip: LiveData<TripWithRoute?> get() = _activeTrip
+    /*private val _activeTrip = MutableLiveData<TripWithRoute?>()
+    val activeTrip: LiveData<TripWithRoute?> get() = _activeTrip*/
+
+    val activeTrip: LiveData<TripWithRoute?> get() = tripRepository.activeTrip
 
     // LiveData to expose the result of the trip creation
     private val _createTripResult = MutableLiveData<Result<TripWithRoute>>()
@@ -58,6 +59,7 @@ class TripViewModel @Inject constructor(
         viewModelScope.launch {
             val result = endTripUseCase.execute(tripId)
             result.onSuccess {
+                tripRepository.setActiveTrip(null)
                 // Handle success (e.g. show a success message)
             }.onFailure {
                 _errorMessage.value = "Trip could not be closed"
@@ -69,16 +71,10 @@ class TripViewModel @Inject constructor(
 
     // Function to fetch the active trip
     fun loadActiveTrip() {
-        _isLoading.value = true // Start loading
+        _isLoading.value = true
         viewModelScope.launch {
-            try {
-                val trip = getActiveTripUseCase.execute()  // Fetch the active trip
-                _activeTrip.value = trip  // Set the active trip
-            } catch (e: Exception) {
-                _errorMessage.value = "Error fetching active trip: ${e.message}"  // Handle errors
-            } finally {
-                _isLoading.value = false  // End loading once the process is complete
-            }
+            tripRepository.loadActiveTrip()
+            _isLoading.value = false
         }
     }
 
@@ -121,7 +117,7 @@ class TripViewModel @Inject constructor(
                     // Set the active trip immediately after creation
                     val tripWithRoute = result.getOrNull()
                     if (tripWithRoute != null) {
-                        _activeTrip.value = tripWithRoute
+                        tripRepository.setActiveTrip(tripWithRoute)
                         loadActiveTrip()
                     }
                 } else {

@@ -16,7 +16,7 @@ import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.Bus
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
-import kotlinx.coroutines.launch
+
 
 @Composable
 fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
@@ -34,15 +34,18 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colors.background)
             .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Create a New Trip", style = MaterialTheme.typography.h5, color = Color(0xFF1565C0))
+        Text(
+            text = "Create a New Trip",
+            style = MaterialTheme.typography.h5.copy(color = MaterialTheme.colors.primary)
+        )
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ✅ Route Dropdown
+        // Route Dropdown
         DropdownSelector(
             label = "Select Route",
             items = routes,
@@ -53,7 +56,7 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ✅ Bus Dropdown
+        // Bus Dropdown
         DropdownSelector(
             label = "Select Bus",
             items = buses,
@@ -64,7 +67,7 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ✅ Create Trip Button
+        // Create Trip Button
         Button(
             onClick = {
                 selectedRoute?.let { route ->
@@ -76,18 +79,16 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
             },
             enabled = selectedRoute != null && selectedBus != null && !isCreatingTrip,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFFFEB3B))
+            colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.primary)
         ) {
             if (isCreatingTrip) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
             } else {
-                Text("Create Trip", color = Color.Black)
+                Text("Create Trip", color = Color.White)
             }
         }
-
     }
 }
-
 
 /**
  * ✅ Reusable Dropdown Selector Component (Fixed for Real-time Updates)
@@ -114,8 +115,9 @@ fun <T> DropdownSelector(
                     Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
                 }
             },
+            label = { Text(label) },
             colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = Color(0xFF1565C0),
+                focusedBorderColor = MaterialTheme.colors.primary,
                 unfocusedBorderColor = Color.Gray
             )
         )

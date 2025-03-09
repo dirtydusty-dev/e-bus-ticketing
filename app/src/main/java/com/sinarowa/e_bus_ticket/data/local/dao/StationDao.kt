@@ -27,4 +27,9 @@ interface StationDao {
     @Insert
     suspend fun insertMultipleStations(stations: List<StationEntity>)
 
+    //getClosestStop
+
+    @Query("SELECT * FROM stops WHERE stationId IN (:stationIds)")
+    fun getStationsByIds(stationIds: List<String>): List<StationEntity>
+
 }

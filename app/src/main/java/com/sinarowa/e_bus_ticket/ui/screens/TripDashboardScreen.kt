@@ -1,5 +1,6 @@
 package com.sinarowa.e_bus_ticket.ui.screens
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,8 +15,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
-import com.sinarowa.e_bus_ticket.data.local.entities.Trip
 import com.sinarowa.e_bus_ticket.data.local.enums.TicketStatus
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
@@ -31,30 +30,29 @@ fun TripDashboardScreen(
     val tripWithRoute by tripViewModel.activeTrip.observeAsState()
 
     // Check if tripWithRoute is null and display loading or error state
-    if (tripWithRoute == null) {
-        // Show a loading spinner or some placeholder if the trip data is null
+    val isLoading by tripViewModel.isLoading.observeAsState(true)
+
+    if (isLoading) {
         CircularProgressIndicator(modifier = Modifier.fillMaxSize())
         return
     }
 
-    // Now you can safely access tripWithRoute as TripWithRoute
-    val ticketCount = tripWithRoute!!.tickets.filter { it.ticket.status == TicketStatus.VALID }.size
-    val luggageCount = tripWithRoute!!.tickets.filter { it.ticket.paymentCategory == "Luggage" }.size
-    val availableSeats = tripWithRoute!!.bus.capacity - ticketCount
-    val activePassengers = ticketCount
+    // Proceed if tripWithRoute is not null
+    if (tripWithRoute != null) {
+        val ticketCount = tripWithRoute!!.tickets.filter { it.status == TicketStatus.VALID }.size
+        val luggageCount = tripWithRoute!!.tickets.filter { it.paymentCategory == "Luggage" }.size
+        val availableSeats = tripWithRoute!!.bus.capacity - ticketCount
+        val activePassengers = ticketCount
 
-    // State to handle the end trip dialog
-    var showEndTripDialog by remember { mutableStateOf(false) }
-    var confirmationText by remember { mutableStateOf("") }
-    var endTripCountdown by remember { mutableStateOf(3) }
-    var isCountingDown by remember { mutableStateOf(false) }
+        var showEndTripDialog by remember { mutableStateOf(false) }
+        var confirmationText by remember { mutableStateOf("") }
+        var endTripCountdown by remember { mutableStateOf(3) }
+        var isCountingDown by remember { mutableStateOf(false) }
 
-    // Launch countdown when dialog is shown
-    val scope = rememberCoroutineScope()
+        val scope = rememberCoroutineScope()
 
-    LaunchedEffect(showEndTripDialog) {
-        if (showEndTripDialog) {
-            scope.launch {
+        LaunchedEffect(showEndTripDialog) {
+            if (showEndTripDialog) {
                 isCountingDown = true
                 for (i in 3 downTo 1) {
                     endTripCountdown = i
@@ -64,70 +62,70 @@ fun TripDashboardScreen(
                 isCountingDown = false
             }
         }
-    }
 
-    val isConfirmEnabled = confirmationText.uppercase() == "END" && endTripCountdown == 0
+        val isConfirmEnabled = confirmationText.uppercase() == "END" && endTripCountdown == 0
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Trip Info Card
-        TripInfoCard(
-            trip = tripWithRoute!!,
-            ticketCount = ticketCount,
-            luggageCount = luggageCount,
-            availableSeats = availableSeats,
-            activePassengers = activePassengers
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF5F5F5))  // Light background color for a clean feel
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
+        ) {
+            TripInfoCard(
+                trip = tripWithRoute!!,
+                ticketCount = ticketCount,
+                luggageCount = luggageCount,
+                availableSeats = availableSeats,
+                activePassengers = activePassengers
+            )
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        // Dashboard Buttons
-        DashboardButton("Passenger Tickets", Color(0xFFFFEB3B), Icons.Filled.Person) {
-            navController.navigate("passengerTickets/${tripWithRoute!!.trip.tripId}")
+            // Professional-looking Dashboard Buttons with improved design
+            DashboardButton("Passenger Tickets", Color(0xFF4CAF50), Icons.Filled.Person) {
+                navController.navigate("passenger_ticketing")
+            }
+            DashboardButton("Luggage Tickets", Color(0xFFFF9800), Icons.Filled.Luggage) {
+                navController.navigate("luggageTickets/${tripWithRoute!!.trip.tripId}")
+            }
+            DashboardButton("Log Expenses", Color(0xFF2196F3), Icons.Filled.AttachMoney) {
+                navController.navigate("expenses/${tripWithRoute!!.trip.tripId}")
+            }
+            DashboardButton("View Reports", Color(0xFF9C27B0), Icons.Filled.BarChart) {
+                navController.navigate("reports/${tripWithRoute!!.trip.tripId}")
+            }
+            DashboardButton("End Trip", Color.Red, Icons.Filled.Warning) {
+                showEndTripDialog = true
+            }
         }
-        DashboardButton("Luggage Tickets", Color(0xFFFFEB3B), Icons.Filled.Luggage) {
-            navController.navigate("luggageTickets/${tripWithRoute!!.trip.tripId}")
-        }
-        DashboardButton("Log Expenses", Color(0xFFFFEB3B), Icons.Filled.AttachMoney) {
-            navController.navigate("expenses/${tripWithRoute!!.trip.tripId}")
-        }
-        DashboardButton("View Reports", Color(0xFF1565C0), Icons.Filled.BarChart) {
-            navController.navigate("reports/${tripWithRoute!!.trip.tripId}")
-        }
-        DashboardButton("End Trip", Color.Red, Icons.Filled.Warning) {
-            showEndTripDialog = true
-        }
-    }
 
-    // End Trip Confirmation Dialog
-    if (showEndTripDialog) {
-        EndTripDialog(
-            showEndTripDialog = showEndTripDialog,
-            confirmationText = confirmationText,
-            onConfirmationTextChange = { confirmationText = it },
-            endTripCountdown = endTripCountdown,
-            isCountingDown = isCountingDown,
-            isConfirmEnabled = isConfirmEnabled,
-            onConfirm = {
-                scope.launch {
-                    tripViewModel.endTrip(tripWithRoute!!.trip.tripId)
-                    navController.popBackStack() // Return after ending the trip
-                }
-            },
-            onDismiss = { showEndTripDialog = false }
-        )
+        // End Trip Confirmation Dialog with cleaner UI
+        if (showEndTripDialog) {
+            EndTripDialog(
+                showEndTripDialog = showEndTripDialog,
+                confirmationText = confirmationText,
+                onConfirmationTextChange = { confirmationText = it },
+                endTripCountdown = endTripCountdown,
+                isCountingDown = isCountingDown,
+                isConfirmEnabled = isConfirmEnabled,
+                onConfirm = {
+                    scope.launch {
+                        tripViewModel.endTrip(tripWithRoute!!.trip.tripId)
+                        navController.popBackStack() // Return after ending the trip
+                    }
+                },
+                onDismiss = { showEndTripDialog = false }
+            )
+        }
+    } else {
+        // Show empty state when no trip data
+        EmptyState(navController)
     }
 }
 
-
-
-// Trip Info Card Composable
+// Trip Info Card Composable with elevated shadow for better UI
 @Composable
 fun TripInfoCard(
     trip: TripWithRoute,
@@ -138,17 +136,17 @@ fun TripInfoCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = 4.dp,
-        shape = RoundedCornerShape(12.dp),
-        backgroundColor = Color(0xFF87CEEB)
+        elevation = 8.dp,  // Added elevation for shadow effect
+        shape = RoundedCornerShape(16.dp),
+        backgroundColor = Color(0xFF00ACC1)  // Professional, modern blue color
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(Icons.Filled.BusAlert, contentDescription = "Trip Icon", tint = Color.White, modifier = Modifier.size(40.dp))
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Trip: ${trip.route.routeName}", style = MaterialTheme.typography.h6, color = Color.White)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Trip: ${trip.route.route.routeName}", style = MaterialTheme.typography.h6, color = Color.White)
             Text("Bus: ${trip.bus.busName}", style = MaterialTheme.typography.body1, color = Color.White)
             Text("Passenger Tickets Sold: $ticketCount", style = MaterialTheme.typography.body1, color = Color.White)
             Text("Luggage Tickets Sold: $luggageCount", style = MaterialTheme.typography.body1, color = Color.White)
@@ -158,27 +156,28 @@ fun TripInfoCard(
     }
 }
 
-// Reusable Dashboard Button Composable
+// Reusable Dashboard Button Composable with a more polished design
 @Composable
 fun DashboardButton(text: String, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .height(50.dp),
+            .padding(vertical = 10.dp)
+            .height(55.dp),
         colors = ButtonDefaults.buttonColors(backgroundColor = color),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),  // Rounded corners for modern UI
+        elevation = ButtonDefaults.elevation(4.dp)  // Added subtle elevation for a floating effect
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = text, tint = Color.Black, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text, color = Color.Black, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            Icon(icon, contentDescription = text, tint = Color.White, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(text, color = Color.White, fontSize = 18.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
         }
     }
 }
 
-// End Trip Confirmation Dialog Composable
+// End Trip Confirmation Dialog with a cleaner design
 @Composable
 fun EndTripDialog(
     showEndTripDialog: Boolean,
@@ -228,4 +227,3 @@ fun EndTripDialog(
         }
     )
 }
-

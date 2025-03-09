@@ -3,38 +3,41 @@ package com.sinarowa.e_bus_ticket.domain.models
 import androidx.room.Embedded
 import androidx.room.Ignore
 import androidx.room.Relation
-import com.sinarowa.e_bus_ticket.data.local.entities.Bus
-import com.sinarowa.e_bus_ticket.data.local.entities.Expense
-import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
-import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
-import com.sinarowa.e_bus_ticket.data.local.entities.Trip
-import com.sinarowa.e_bus_ticket.data.local.enums.TripStatus
+import com.sinarowa.e_bus_ticket.data.local.entities.*
 
 data class TripWithRoute(
-    @Embedded var trip: Trip, // Embedded Trip entity
+    @Embedded var trip: Trip,
 
     @Relation(
-        parentColumn = "trip_routeId", // Matches the column name in Trip entity
-        entityColumn = "routeId" // Matches the column name in RouteEntity
+        parentColumn = "trip_routeId", // From Trip
+        entityColumn = "routeId",      // From RouteEntity (inside RouteWithStations)
+        entity = RouteEntity::class    // Specify the entity
     )
-    var route: RouteEntity, // Relationship to RouteEntity
-
+    var route: RouteWithStations,
 
     @Relation(
-        parentColumn = "trip_busId", // Matches the column name in Trip entity
-        entityColumn = "busId" // Matches the column name in Bus entity
+        parentColumn = "trip_busId",
+        entityColumn = "busId"
     )
-    var bus: Bus, // Relationship to Bus
+    var bus: Bus,
 
+    /*@Relation(
+        parentColumn = "trip_routeId",
+        entityColumn = "startStationId"
+    )
+    var prices: List<Price>,*/
 
-    @Ignore
-    val tickets: List<PriceWithTicket>,
+    @Relation(
+        parentColumn = "tripId",
+        entityColumn = "ticket_tripId"
+    )
+    var tickets: List<Ticket>,
 
-    @Ignore
-    val expenses: List<Expense>
-
-){
-    // No-argument constructor for Room
-    constructor() : this(Trip(), RouteEntity(), Bus(), emptyList(), emptyList())
+    @Relation(
+        parentColumn = "tripId",
+        entityColumn = "expense_tripId"
+    )
+    var expenses: List<Expense>
+) {
+    constructor() : this(Trip(), RouteWithStations(), Bus(), emptyList(), emptyList())
 }
-

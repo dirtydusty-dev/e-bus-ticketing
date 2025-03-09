@@ -20,11 +20,11 @@ interface RouteStopDao {
 
 
     // Get route stops for a specific route
-    @Query("SELECT * FROM routestop WHERE routeId = :routeId")
+    @Query("SELECT * FROM routestop WHERE route_stop_route_id = :routeId")
     suspend fun getRouteStopsByRouteId(routeId: String): List<RouteStop>
 
     // Get a specific route stop by routeId and stationId
-    @Query("SELECT * FROM routestop WHERE routeId = :routeId AND stationId = :stationId LIMIT 1")
+    @Query("SELECT * FROM routestop WHERE route_stop_route_id = :routeId AND route_stop_station_id = :stationId LIMIT 1")
     suspend fun getRouteStopByRouteIdAndStationId(routeId: String, stationId: String): RouteStop?
 
     // Insert multiple route stops at once

@@ -29,9 +29,6 @@ import androidx.work.PeriodicWorkRequest
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.sinarowa.e_bus_ticket.data.repository.ExpenseRepository
-import com.sinarowa.e_bus_ticket.data.repository.TicketRepository
-import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import com.sinarowa.e_bus_ticket.worker.SyncTripWorker
 import com.sinarowa.e_bus_ticket.worker.WorkerScheduler
 import timber.log.Timber
@@ -75,10 +72,11 @@ class CreateTripUseCase @Inject constructor(
         Log.d("CreateTripUseCase", "Created new trip: $trip")
 
         // Get Route and Bus data (you would need to fetch these from your repository or API)
-        val route = routeRepository.getRouteById(routeId)
+        val routeWithStations = routeRepository.getRouteWithStops(routeId)
         val bus = busRepository.getBusById(busId)
+        val prices = tripRepository.getPricesForRoute(routeId)
 
-        if (route == null) {
+        if (routeWithStations == null) {
             Log.e("CreateTripUseCase", "Route with ID $routeId not found.")
             return Result.failure(Exception("Route not found"))
         }
@@ -90,7 +88,7 @@ class CreateTripUseCase @Inject constructor(
         Log.d("CreateTripUseCase", "Fetched route and bus data. Creating TripWithRoute.")
 
         // Create a TripWithRoute object
-        val tripWithRoute = TripWithRoute(trip = trip, route = route, bus = bus,tickets = emptyList(), // Initialize with empty list for tickets
+        val tripWithRoute = TripWithRoute(trip = trip, route = routeWithStations, bus = bus, tickets = emptyList(), // Initialize with empty list for tickets
             expenses = emptyList())
 
         // Save the TripWithRoute to the database
@@ -172,7 +170,7 @@ class CreateTripUseCase @Inject constructor(
             creationTime = trip.trip.startTime,
             endTime = trip.trip.endTime ?: "",
             registrationNumber = trip.bus.busNumber,
-            routeName = trip.route.routeName,
+            routeName = trip.route.route.routeName,
             tripIdentifier = trip.trip.tripId,
             tripStatus = trip.trip.status.toString()
         )

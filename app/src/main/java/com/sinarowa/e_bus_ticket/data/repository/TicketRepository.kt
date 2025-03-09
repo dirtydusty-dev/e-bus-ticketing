@@ -3,6 +3,7 @@ package com.sinarowa.e_bus_ticket.data.repository
 import com.sinarowa.e_bus_ticket.data.local.dao.TicketDao
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 import com.sinarowa.e_bus_ticket.data.local.enums.SyncStatus
+import com.sinarowa.e_bus_ticket.data.local.enums.TicketStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -16,6 +17,10 @@ class TicketRepository @Inject constructor(private val ticketDao: TicketDao) {
 
     suspend fun updateTicketSyncStatus(ticket: Ticket) {
         ticketDao.updateTicketSyncStatus(ticket)
+    }
+
+    suspend fun insertTicket(ticket: Ticket) {
+        ticketDao.insert(ticket)
     }
 
 

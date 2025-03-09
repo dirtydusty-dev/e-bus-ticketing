@@ -17,5 +17,11 @@ interface PriceDao {
     @Insert
     suspend fun insertPrices(prices: List<Price>)
 
+    @Query("SELECT * FROM prices WHERE startStationId = :fromStationId AND destinationStationId = :toStationId LIMIT 1")
+    suspend fun getPrice(fromStationId: String, toStationId: String): Price?
+
+    @Query("SELECT * FROM prices WHERE startStationId IN (SELECT route_stop_station_id FROM routestop WHERE route_stop_route_id = :routeId)")
+    suspend fun getPricesForRoute(routeId: String): List<Price>
+
 
 }
