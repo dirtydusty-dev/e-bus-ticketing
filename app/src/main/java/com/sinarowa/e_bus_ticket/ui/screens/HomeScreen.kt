@@ -5,11 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.DirectionsBus
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,33 +19,19 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(
-    viewModel: TripViewModel,
-    navController: NavController,
-) {
-    // Observe active trip, error message, and loading state
-    val activeTrip by viewModel.activeTrip.observeAsState()
-    val errorMessage by viewModel.errorMessage.observeAsState()
-    val isLoading by viewModel.isLoading.observeAsState(true)
-
-    // Launch effect to load active trip once the screen is composed
-    LaunchedEffect(key1 = Unit) {
-        if (isLoading) {
-            viewModel.loadActiveTrip() // Fetch active trip
-        }
-    }
+fun HomeScreen(viewModel: TripViewModel, navController: NavController) {
+    val state by viewModel.state.collectAsState()
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text("Active Trip", color = Color.White) },
-                backgroundColor = Color(0xFF1565C0),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color(0xFF1565C0)),
                 navigationIcon = {
                     var menuExpanded by remember { mutableStateOf(false) }
                     Box {
@@ -55,20 +41,22 @@ fun HomeScreen(
                         DropdownMenu(
                             expanded = menuExpanded,
                             onDismissRequest = { menuExpanded = false },
-                            modifier = Modifier.background(Color.White)
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
-                            DropdownMenuItem(onClick = {
-                                menuExpanded = false
-                                navController.navigate("bluetoothScreen")
-                            }) {
-                                Text("Connect Printer")
-                            }
-                            DropdownMenuItem(onClick = {
-                                menuExpanded = false
-                                navController.navigate("settings")
-                            }) {
-                                Text("Settings")
-                            }
+                            DropdownMenuItem(
+                                text = { Text("Connect Printer") },
+                                onClick = {
+                                    menuExpanded = false
+                                    navController.navigate("bluetoothScreen")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                onClick = {
+                                    menuExpanded = false
+                                    navController.navigate("settings")
+                                }
+                            )
                         }
                     }
                 }
@@ -79,35 +67,32 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF5F5F5)),
+                .background(MaterialTheme.colorScheme.background),
             contentAlignment = Alignment.Center
         ) {
-            // Display loading, active trip, or empty state
             when {
-                isLoading -> {
-                    CircularProgressIndicator(color = Color(0xFF1565C0))
+                state.isLoading -> {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-                activeTrip != null -> {
-                    activeTrip?.let { tripWithRoute ->
-                        TripItem(
-                            tripWithRoute = tripWithRoute,
-                            onClick = { navController.navigate("tripDashboard") }
-                        )
-                    }
+                state.activeTrip != null -> {
+                    TripItem(
+                        tripWithRoute = state.activeTrip!!,
+                        onClick = { navController.navigate("tripDashboard") }
+                    )
                 }
                 else -> {
                     EmptyState(navController)
                 }
             }
 
-            // Show error message if any
-            errorMessage?.let {
+            state.errorMessage?.let {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Error: $it", color = Color.Red)
+                Text(text = "Error: $it", color = MaterialTheme.colorScheme.error)
             }
         }
     }
 }
+
 
 @Composable
 fun TripItem(tripWithRoute: TripWithRoute, onClick: (String) -> Unit) {
@@ -126,8 +111,8 @@ fun TripItem(tripWithRoute: TripWithRoute, onClick: (String) -> Unit) {
             .fillMaxWidth()
             .padding(vertical = 10.dp)
             .clickable { onClick(tripWithRoute.trip.tripId) },
-        backgroundColor = Color.White,
-        elevation = 6.dp, // Subtle elevation for floating effect
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
@@ -138,29 +123,29 @@ fun TripItem(tripWithRoute: TripWithRoute, onClick: (String) -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.LocationOn, contentDescription = "Route", tint = Color(0xFF1565C0))
+                    Icon(Icons.Filled.LocationOn, contentDescription = "Route", tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "Trip: ${tripWithRoute.route.route.routeName}",
-                        style = MaterialTheme.typography.h6.copy(fontWeight = FontWeight.Bold),
-                        color = Color(0xFF1565C0)
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.DirectionsBus, contentDescription = "Bus", tint = Color.Gray)
+                    Icon(Icons.Filled.DirectionsBus, contentDescription = "Bus", tint = MaterialTheme.colorScheme.secondary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(
                             "Bus: ${tripWithRoute.bus.busName}",
-                            style = MaterialTheme.typography.body2,
-                            color = Color.Gray
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Start: ${tripWithRoute.trip.startTime}",
                             fontStyle = FontStyle.Italic,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
                     }
@@ -182,7 +167,7 @@ fun TripItem(tripWithRoute: TripWithRoute, onClick: (String) -> Unit) {
                     text = "Active",
                     fontStyle = FontStyle.Italic,
                     color = Color(0xFF00C853),
-                    style = MaterialTheme.typography.body2
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
@@ -200,13 +185,13 @@ fun EmptyState(navController: NavController) {
             "No trips available yet!",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1565C0)
+            color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             "Start by creating a new trip below.",
             fontSize = 16.sp,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -215,11 +200,11 @@ fun EmptyState(navController: NavController) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            colors = ButtonDefaults.buttonColors(backgroundColor = Color(0xFFFFEB3B)),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
             shape = RoundedCornerShape(12.dp),
-            elevation = ButtonDefaults.elevation(6.dp)
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
         ) {
-            Text("Create New Trip", color = Color.Black)
+            Text("Create New Trip", color = MaterialTheme.colorScheme.onTertiary)
         }
     }
 }

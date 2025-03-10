@@ -2,11 +2,8 @@ package com.sinarowa.e_bus_ticket.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -15,121 +12,69 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.entities.Bus
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
+import com.sinarowa.e_bus_ticket.ui.components.DropdownMenuComponent
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
-    // Observe routes and buses
-    val routes by viewModel.routes.observeAsState(emptyList())
-    val buses by viewModel.buses.observeAsState(emptyList())
-
+    val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    // Hold selected route and bus
+
     var selectedRoute by remember { mutableStateOf<RouteEntity?>(null) }
     var selectedBus by remember { mutableStateOf<Bus?>(null) }
-
-    val isCreatingTrip by viewModel.isLoading.observeAsState(false)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colors.background)
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = "Create a New Trip",
-            style = MaterialTheme.typography.h5.copy(color = MaterialTheme.colors.primary)
+            style = MaterialTheme.typography.headlineSmall.copy(color = MaterialTheme.colorScheme.primary)
         )
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Route Dropdown
-        DropdownSelector(
+        // ✅ Use DropdownMenuComponent for Routes
+        DropdownMenuComponent(
             label = "Select Route",
-            items = routes,
-            selectedItem = selectedRoute,
-            onSelectionChanged = { selectedRoute = it },
-            displayText = { it.routeName }
+            items = state.routes.map { it.routeName },
+            selectedItem = selectedRoute?.routeName ?: "",
+            onSelectionChanged = { selectedRoute = state.routes.firstOrNull { route -> route.routeName == it } }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Bus Dropdown
-        DropdownSelector(
+        // ✅ Use DropdownMenuComponent for Buses
+        DropdownMenuComponent(
             label = "Select Bus",
-            items = buses,
-            selectedItem = selectedBus,
-            onSelectionChanged = { selectedBus = it },
-            displayText = { it.busName }
+            items = state.buses.map { it.busName },
+            selectedItem = selectedBus?.busName ?: "",
+            onSelectionChanged = { selectedBus = state.buses.firstOrNull { bus -> bus.busName == it } }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Create Trip Button
         Button(
             onClick = {
                 selectedRoute?.let { route ->
                     selectedBus?.let { bus ->
-                        viewModel.createTrip(route, bus, context)
-                        navController.popBackStack() // Navigate after creating trip
+                        viewModel.createTrip(route, bus)
+                        navController.popBackStack()
                     }
                 }
             },
-            enabled = selectedRoute != null && selectedBus != null && !isCreatingTrip,
+            enabled = selectedRoute != null && selectedBus != null && !state.isLoading,
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.primary)
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            if (isCreatingTrip) {
+            if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
             } else {
                 Text("Create Trip", color = Color.White)
-            }
-        }
-    }
-}
-
-/**
- * ✅ Reusable Dropdown Selector Component (Fixed for Real-time Updates)
- */
-@Composable
-fun <T> DropdownSelector(
-    label: String,
-    items: List<T>,
-    selectedItem: T?,
-    onSelectionChanged: (T) -> Unit,
-    displayText: (T) -> String
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedText by rememberUpdatedState(selectedItem?.let { displayText(it) } ?: label)
-
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = selectedText,
-            onValueChange = {},
-            readOnly = true,
-            modifier = Modifier.fillMaxWidth(),
-            trailingIcon = {
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
-                }
-            },
-            label = { Text(label) },
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = MaterialTheme.colors.primary,
-                unfocusedBorderColor = Color.Gray
-            )
-        )
-
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            items.forEach { item ->
-                DropdownMenuItem(onClick = {
-                    onSelectionChanged(item)
-                    expanded = false
-                }) {
-                    Text(displayText(item))
-                }
             }
         }
     }

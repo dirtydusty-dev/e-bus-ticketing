@@ -1,25 +1,25 @@
 package com.sinarowa.e_bus_ticket
 
 import android.Manifest
+import android.app.ActivityManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkInfo
+import androidx.work.Worker
+import androidx.work.WorkerParameters
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import com.sinarowa.e_bus_ticket.service.LocationService
 import com.sinarowa.e_bus_ticket.ui.screens.CreateTripScreen
@@ -33,7 +33,6 @@ import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 import com.sinarowa.e_bus_ticket.worker.WorkerScheduler
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -49,33 +48,30 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        Timber.plant(Timber.DebugTree())
         checkAndRequestPermissions()
 
-        Log.d("TEST", "Log is working fine!")
-
-        setContent {
-            val navController = rememberNavController()
-
-            NavHost(navController, startDestination = "home") {
-                composable("home") { HomeScreen(tripViewModel, navController) }
-                composable("createTrip") { CreateTripScreen(tripViewModel, navController) }
-
-                // Add the TripDashboardScreen route without the 'tripId'
-                composable("tripDashboard") {
-                    TripDashboardScreen(navController = navController, tripViewModel = tripViewModel)
-                }
-
-                composable("passenger_ticketing") {
-                    PassengerTicketingScreen(ticketViewModel = ticketViewModel, navController = navController)
-                }
+        permissionViewModel.permissionsGranted.observe(this) { granted ->
+            if (granted) {
+                startLocationTracking()
+                scheduleServiceMonitor()
+            } else {
+                Timber.w("⚠️ Permissions or location services not fully granted")
             }
         }
 
-        // Step 4: Schedule the SyncTripWorker when the app starts
-        Log.d("MainActivity", "Scheduling SyncTripWorker")
-        workerScheduler.scheduleSyncTripWorker(applicationContext) // Use `this` to refer to the Activity context
+        setContent {
+            val navController = rememberNavController()
+            NavHost(navController, startDestination = if (permissionViewModel.arePermissionsGranted()) "home" else "requestPermissions") {
+                composable("requestPermissions") { RequestPermissionsScreen(permissionViewModel, navController) }
+                composable("home") { HomeScreen(tripViewModel, navController) }
+                composable("createTrip") { CreateTripScreen(tripViewModel, navController) }
+                composable("tripDashboard") { TripDashboardScreen(navController, tripViewModel) }
+                composable("passenger_ticketing") { PassengerTicketingScreen() }
+            }
+        }
 
+        workerScheduler.scheduleSyncTripWorker(applicationContext)
     }
 
     private fun checkAndRequestPermissions() {
@@ -83,8 +79,6 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
-
-        // Android 13+ needs extra permission for notifications (for foreground service)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -93,30 +87,82 @@ class MainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
 
-        if (neededPermissions.isNotEmpty()) {
-            permissionLauncher.launch(neededPermissions.toTypedArray())
+        if (neededPermissions.isEmpty() && isLocationEnabled()) {
+            permissionViewModel.updatePermissionsGranted(true)
         } else {
-            startLocationTracking() // ✅ Start location service if already granted
+            permissionLauncher.launch(neededPermissions.toTypedArray())
         }
     }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions.values.all { it }) {
-            startLocationTracking() // ✅ If granted, start tracking
+        val allGranted = permissions.values.all { it } && isLocationEnabled()
+        permissionViewModel.updatePermissionsGranted(allGranted)
+        if (!allGranted) {
+            Timber.w("⚠️ Some permissions denied or location services off: $permissions")
         }
+    }
+
+    private fun isLocationEnabled(): Boolean {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val enabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        if (!enabled) Timber.w("❌ Location services disabled")
+        return enabled
     }
 
     private fun startLocationTracking() {
+        if (!isLocationEnabled()) {
+            Timber.w("❌ Location services disabled, aborting start")
+            permissionViewModel.updatePermissionsGranted(false)
+            return
+        }
         val serviceIntent = Intent(this, LocationService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Log.d("MainActivity", "Android 8+ detected. Using startForegroundService()...")
-            startForegroundService(serviceIntent)
-        } else {
-            Log.d("MainActivity", "Android 7 or lower detected. Using startService()...")
-            startService(serviceIntent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+                Timber.d("✅ LocationService started as foreground service")
+            } else {
+                startService(serviceIntent)
+                Timber.d("✅ LocationService started")
+            }
+        } catch (e: Exception) {
+            Timber.e("❌ Failed to start LocationService: ${e.message}")
         }
     }
 
+    private fun scheduleServiceMonitor() {
+        val workRequest = PeriodicWorkRequestBuilder<LocationServiceMonitorWorker>(15, TimeUnit.MINUTES)
+            .build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "LocationServiceMonitor",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
+        Timber.d("✅ Scheduled LocationServiceMonitorWorker")
+    }
+}
+
+class LocationServiceMonitorWorker(appContext: Context, params: WorkerParameters) : Worker(appContext, params) {
+    override fun doWork(): Result {
+        val serviceIntent = Intent(applicationContext, LocationService::class.java)
+        if (!isServiceRunning(LocationService::class.java)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                applicationContext.startForegroundService(serviceIntent)
+            } else {
+                applicationContext.startService(serviceIntent)
+            }
+            Timber.d("✅ Restarted LocationService")
+        } else {
+            Timber.d("ℹ️ LocationService already running")
+        }
+        return Result.success()
+    }
+
+    private fun isServiceRunning(serviceClass: Class<*>): Boolean {
+        val manager = applicationContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        return manager.getRunningServices(Integer.MAX_VALUE)
+            .any { it.service.className == serviceClass.name }
+    }
 }

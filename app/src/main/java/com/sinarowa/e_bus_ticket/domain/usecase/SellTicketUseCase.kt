@@ -14,7 +14,7 @@ class SellTicketUseCase @Inject constructor(
     private val ticketRepository: TicketRepository,
     private val priceRepository: PriceRepository
 ) {
-    suspend fun execute(tripId: String, fromStationId: String, toStationId: String, paymentCategory: String): Result<Unit> {
+    suspend fun execute(tripId: String, fromStationId: String, toStationId: String, paymentCategory: String, amount: Double): Result<Unit> {
         return try {
             // Validate input data
             if (tripId.isBlank() || fromStationId.isBlank() || toStationId.isBlank()) {
@@ -25,17 +25,21 @@ class SellTicketUseCase @Inject constructor(
             val priceEntry = priceRepository.getPrice(fromStationId, toStationId)
                 ?: return Result.failure(IllegalArgumentException("No price found for selected route"))
 
-            // Generate a new Ticket ID
-            val ticketId = UUID.randomUUID().toString()
+            // ✅ Get the count of existing tickets for the trip
+            val lastTicketNumber = ticketRepository.getLastTicketNumberForTrip(tripId) ?: 0
+            val newTicketNumber = lastTicketNumber + 1
+
+            // ✅ Format ticket number as 4 digits (e.g., 0001, 0025, 0120)
+            val formattedTicketId = newTicketNumber.toString().padStart(4, '0')
 
             // Create Ticket
             val ticket = Ticket(
-                ticketId = ticketId,
+                ticketId = formattedTicketId,
                 tripId = tripId,
                 priceId = priceEntry.priceId,
                 paymentCategory = paymentCategory,
                 creationTime = DateTimeUtils.getCurrentDateTime(),
-                amount = priceEntry.amount,
+                amount = amount,
                 status = TicketStatus.VALID,
                 syncStatus = SyncStatus.PENDING
             )

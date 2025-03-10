@@ -23,5 +23,9 @@ class TicketRepository @Inject constructor(private val ticketDao: TicketDao) {
         ticketDao.insert(ticket)
     }
 
+    suspend fun getLastTicketNumberForTrip(tripId: String): Int? {
+        val lastTicket = ticketDao.getLastTicketForTrip(tripId) ?: return null
+        return lastTicket.ticketId.toIntOrNull() // Convert from "0001" to 1
+    }
 
 }

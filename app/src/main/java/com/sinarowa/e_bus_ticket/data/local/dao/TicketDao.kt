@@ -25,4 +25,8 @@ interface TicketDao {
     @Query("SELECT COUNT(*) FROM tickets WHERE ticket_tripId = :tripId and status = :status")
     suspend fun getTicketCount(tripId: String, status: TicketStatus): Int
 
+    @Query("SELECT * FROM tickets WHERE ticket_tripId = :tripId ORDER BY ticketId DESC LIMIT 1")
+    suspend fun getLastTicketForTrip(tripId: String): Ticket?
+
+
 }

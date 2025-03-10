@@ -10,11 +10,25 @@ import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import com.sinarowa.e_bus_ticket.domain.usecase.SellTicketUseCase
 import com.sinarowa.e_bus_ticket.utils.LocationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+data class TicketState(
+    val fromStation: String = "",
+    val destination: String = "",
+    val validDestinations: List<String> = emptyList(),
+    val ticketType: String = "Adult",
+    val originalPrice: Double = 0.0,
+    val displayPrice: Double = 0.0,
+    val shortAmount: Int = 0,
+    val remainingSeats: Int = 0,
+    val activePassengers: Int = 0,
+    val isProcessing: Boolean = false,
+    val sellResult: Result<Unit>? = null
+)
 
 @HiltViewModel
 class TicketViewModel @Inject constructor(
@@ -25,333 +39,184 @@ class TicketViewModel @Inject constructor(
 
     val activeTrip: LiveData<TripWithRoute?> get() = tripRepository.activeTrip
 
-    private val _fromStation = MutableLiveData<String>()
-    val fromStation: LiveData<String> get() = _fromStation
-
-    private val _validDestinations = MutableLiveData<List<String>>()
-    val validDestinations: LiveData<List<String>> get() = _validDestinations
-
-    private val _ticketPrice = MutableLiveData<Double>()
-    val ticketPrice: LiveData<Double> get() = _ticketPrice
-
-    private val _shortAmount = MutableLiveData<Int>()
-    val shortAmount: LiveData<Int> get() = _shortAmount
-
-    private val _isProcessing = MutableLiveData<Boolean>()
-    val isProcessing: LiveData<Boolean> get() = _isProcessing
-
-    private val _sellTicketResult = MutableLiveData<Result<Unit>>()
-    val sellTicketResult: LiveData<Result<Unit>> get() = _sellTicketResult
-
-    // ✅ Add destination property
-    private val _destination = MutableLiveData<String>()
-    val destination: LiveData<String> get() = _destination
-
-    // ✅ Add ticketType property
-    private val _ticketType = MutableLiveData<String>()
-    val ticketType: LiveData<String> get() = _ticketType
-
-    private val _remainingSeats = MutableLiveData(0)
-    val remainingSeats: LiveData<Int> get() = _remainingSeats
-
-    private val _activePassengers = MutableLiveData(0)
-    val activePassengers: LiveData<Int> get() = _activePassengers
+    private val _state = MutableStateFlow(TicketState())
+    val state: StateFlow<TicketState> get() = _state.asStateFlow()
 
     init {
-        _shortAmount.value = 0
-        _destination.value = ""
-        _ticketType.value = ""
-    }
-
-    init {
-        CoroutineScope(Dispatchers.IO).launch {
-            Log.d("TicketViewModel", "Initializing TicketViewModel...")
-            tripRepository.loadActiveTrip() // ✅ Ensure the trip is loaded
-        }
-    }
-
-    init {
-        activeTrip.observeForever { trip ->
-            if (trip != null) {
-                Log.d("TicketViewModel", "✅ Active trip updated: ${trip.trip.tripId}")
-
-                // 🚀 Update values when activeTrip changes
-                updateDestinations(trip)
-                //updateTicketPrice(trip)
-                calculateRemainingSeats(trip)
-            } else {
-                Log.e("TicketViewModel", "❌ No active trip found!")
+        viewModelScope.launch {
+            tripRepository.loadActiveTrip() // Ensure active trip is loaded initially
+            activeTrip.asFlow().collect { trip ->
+                if (trip != null) {
+                    Log.d("TicketViewModel", "✅ Active trip updated: ${trip.trip.tripId}")
+                    updateTripData(trip)
+                } else {
+                    Log.e("TicketViewModel", "❌ No active trip found!")
+                    _state.value = _state.value.copy(validDestinations = emptyList(), remainingSeats = 0, activePassengers = 0)
+                }
             }
         }
     }
 
+    private fun updateTripData(trip: TripWithRoute) {
+        val currentState = _state.value
+        val ticketCount = trip.tickets.count { it.status == TicketStatus.VALID }
+        _state.value = currentState.copy(
+            remainingSeats = trip.bus.capacity - ticketCount,
+            activePassengers = ticketCount,
+            validDestinations = getValidDestinations(trip, currentState.fromStation)
+        )
+        updatePrice()
+    }
 
-    private fun updateDestinations(trip: TripWithRoute) {
-        val currentStation = _fromStation.value
-        if (currentStation == null) {
-            Log.e("TicketViewModel", "❌ updateDestinations: No current station available.")
-            return
-        }
-
-        // ✅ Create a map of stationId -> stationName for easy lookup
+    private fun getValidDestinations(trip: TripWithRoute, fromStation: String): List<String> {
+        if (fromStation.isBlank()) return emptyList()
         val stationIdToName = trip.route.stationDetails.associateBy { it.stationId }
-
-        // ✅ Sort RouteStops by stopOrder, then get station names
         val sortedStations = trip.route.stops
-            .sortedBy { it.stopOrder } // Sort by stop order
-            .mapNotNull { stationIdToName[it.stationId]?.name } // Convert to station names
-
-        Log.d("TicketViewModel", "🚏 Sorted route stations: $sortedStations")
-        Log.d("TicketViewModel", "📍 Current station: $currentStation")
-
-        // Find index of current station in sorted list
-        val currentIndex = sortedStations.indexOf(currentStation)
-
-        if (currentIndex == -1) {
-            Log.e("TicketViewModel", "❌ updateDestinations: Current station '$currentStation' not found in sorted route!")
-            return
-        }
-
-        // ✅ Get destinations after the current station
-        val destinations = sortedStations.subList(currentIndex + 1, sortedStations.size)
-
-        if (destinations.isEmpty()) {
-            Log.w("TicketViewModel", "⚠️ No valid destinations found after $currentStation.")
-        } else {
-            Log.d("TicketViewModel", "✅ Updated valid destinations: $destinations")
-        }
-
-        _validDestinations.value = destinations
+            .sortedBy { it.stopOrder }
+            .mapNotNull { stationIdToName[it.stationId]?.name }
+        val currentIndex = sortedStations.indexOf(fromStation)
+        return if (currentIndex != -1) sortedStations.subList(currentIndex + 1, sortedStations.size) else emptyList()
     }
 
-    fun updateTicketPrice() {
-        val fromStationName = _fromStation.value ?: return
-        val toStationName = _destination.value ?: return
-        val trip = activeTrip.value ?: return
-
-        Log.d("TicketViewModel", "🔍 Resolving Station Names → IDs: $fromStationName -> ?, $toStationName -> ?")
-
-        val fromStationId = trip.route.stops.find { stop ->
-            stop.stationId == trip.route.stationDetails.find { it.name == fromStationName }?.stationId
-        }?.stationId ?: return
-
-        val toStationId = trip.route.stops.find { stop ->
-            stop.stationId == trip.route.stationDetails.find { it.name == toStationName }?.stationId
-        }?.stationId ?: return
-
-        Log.d("TicketViewModel", "✅ Resolved Station Names → IDs: $fromStationName -> $fromStationId, $toStationName -> $toStationId")
-
-        // ✅ Fetch price from repository
-        viewModelScope.launch {
-            val price = tripRepository.getPriceForStations(fromStationId, toStationId)
-            _ticketPrice.postValue(price)
-
-            Log.d("TicketViewModel", "💰 Ticket price set: $price USD (From: $fromStationId, To: $toStationId)")
-        }
-    }
-
-
-    fun getTicketPriceValue(): Double {
-        return _ticketPrice.value ?: 0.0
-    }
-
-
-
-
-
-
-    private fun calculateTripDetails(tripWithRoute: TripWithRoute) {
-        val ticketCount = tripWithRoute.tickets.count { it.status == TicketStatus.VALID }
-        val luggageCount = tripWithRoute.tickets.count { it.paymentCategory == "Luggage" }
-        val availableSeats = tripWithRoute.bus.capacity - ticketCount
-
-        _remainingSeats.value = availableSeats
-        _activePassengers.value = ticketCount
-    }
-
-
-
-    // ✅ Add setter for destination
-    fun setDestination(destination: String) {
-        _destination.value = destination
-        updateTicketPrice()
-    }
-
-    // ✅ Add setter for ticketType
-    fun setTicketType(type: String) {
-        _ticketType.value = type
-    }
-
-    // ✅ Add setter for shortAmount
-    fun setShortAmount(amount: Int) {
-        val maxShortAmount = _ticketPrice.value ?: 0.0
-
-        if (amount in 0..maxShortAmount.toInt()) {
-            _shortAmount.value = amount
-
-            // ✅ Adjust Ticket Price Dynamically
-            val adjustedPrice = maxShortAmount - amount
-            _ticketPrice.value = adjustedPrice
-
-            // ✅ Set Ticket Type
-            _ticketType.value = if (amount > 0) "$$amount Short" else "Adult"
-
-            Log.d("TicketViewModel", "💰 Adjusted Ticket Price: $adjustedPrice USD (Short: $amount)")
-            Log.d("TicketViewModel", "🎫 Updated Ticket Type: ${_ticketType.value}")
-        }
-    }
-
-
-
-
-    // ✅ Find nearest station and update `fromStation`
     fun updateFromStation(context: Context) {
-        Log.d("TicketViewModel", "updateFromStation() called")
-
         viewModelScope.launch {
-            Log.d("TicketViewModel", "Fetching current location...")
-
             val location = LocationUtils.getCurrentLocation(context)
 
-            if (location == null) {
-                Log.e("TicketViewModel", "❌ Failed to get current location. Skipping station update.")
-                return@launch
-            }
-
-            if (activeTrip.value == null) {
+            // ✅ Ensure trip is properly loaded and assigned
+            val trip = activeTrip.value ?: run {
                 tripRepository.loadActiveTrip()
-                delay(500) // Small delay to allow loading (adjust if needed)
-            }
+                activeTrip.value.also { if (it == null) Log.e("TicketViewModel", "❌ No active trip found.") }
+            } ?: return@launch  // 🚀 Ensures the trip is available
 
-            Log.d(
-                "TicketViewModel",
-                "✅ Current location obtained: Latitude=${location.latitude}, Longitude=${location.longitude}"
-            )
-
-            val trip = activeTrip.value
-            if (trip == null) {
-                Log.e("TicketViewModel", "❌ No active trip found. Cannot update station.")
+            if (location == null) {
+                Log.w("TicketViewModel", "⚠️ Location unavailable, using last known station or retrying...")
+                val lastStation = _state.value.fromStation.takeIf { it.isNotBlank() }
+                if (lastStation != null) {
+                    _state.value = _state.value.copy(fromStation = lastStation, validDestinations = getValidDestinations(trip, lastStation))
+                    updatePrice()
+                }
                 return@launch
             }
-
-            Log.d("TicketViewModel", "✅ Active trip found: Trip ID = ${trip.trip.tripId}")
 
             val stations = trip.route.stationDetails.map { it.name }
-            val stationCoordinates = trip.route.stationDetails.associate { station ->
-                station.name to (station.latitude to station.longitude)
+            val stationCoordinates = trip.route.stationDetails.associate { it.name to (it.latitude to it.longitude) }
+            val nearestStation = LocationUtils.findNearestStation(
+                location.latitude, location.longitude, stations, stationCoordinates, _state.value?.fromStation
+            ) ?: run {
+                Log.e("TicketViewModel", "❌ Could not determine nearest station.")
+                return@launch
             }
 
-            val nearestStation = LocationUtils.findNearestStation(
-                location.latitude, location.longitude, stations, stationCoordinates, _fromStation.value
-            )
-
-            Log.d("TicketViewModel", "🔍 Nearest station found: $nearestStation")
-
-            _fromStation.value = nearestStation
-            updateDestinations(trip) // 🚀 Update destinations **after** `_fromStation` is set
-            //updateTicketPrice(trip) // 🚀 Update price too
+            Log.d("TicketViewModel", "📍 Nearest Station Found: $nearestStation")
+            _state.value = _state.value.copy(fromStation = nearestStation, validDestinations = getValidDestinations(trip, nearestStation))
+            updatePrice()
         }
     }
 
 
-    fun updateChildTicketPrice() {
-        val originalPrice = _ticketPrice.value
-        if (originalPrice != null) {
-            _ticketPrice.value = originalPrice / 2
-        }
-        Log.d("TicketViewModel", "👶 Child Ticket Price Set: ${_ticketPrice.value} USD")
+    fun setDestination(destination: String) {
+        val currentState = _state.value
+        if (destination.isBlank() || destination == currentState.fromStation) return
+        _state.value = currentState.copy(destination = destination, shortAmount = 0)
+        Log.d("TicketViewModel", "📍 Destination updated: $destination")
+        updatePrice()
     }
 
-
-
-
-    fun resetFields() {
-        _destination.value = ""
-        _ticketType.value = "Adult" // Default to Adult
-        _ticketPrice.value = 0.0
-        _shortAmount.value = 0
-        Log.d("TicketViewModel", "🔄 Fields Reset: Destination, Ticket Type, Price, Short Amount")
+    fun setTicketType(type: String) {
+        val currentState = _state.value
+        _state.value = currentState.copy(ticketType = type, shortAmount = 0)
+        updatePrice()
     }
 
+    fun setShortAmount(amount: Int) {
+        val currentState = _state.value
+        if (currentState.ticketType != "Adult" || amount < 0 || amount >= currentState.originalPrice) return
+        _state.value = currentState.copy(shortAmount = amount)
+        updatePrice()
+    }
 
-
-
-
-    fun sellTicket() {
-        Log.d("TicketViewModel", "sellTicket() called")
-
-        _isProcessing.value = true
-
-        val trip = activeTrip.value
-        if (trip == null) {
-            Log.e("TicketViewModel", "❌ No active trip found. Cannot process ticket sale.")
-            _isProcessing.value = false
+    private fun updatePrice() {
+        val currentState = _state.value
+        val trip = activeTrip.value ?: return
+        if (currentState.fromStation.isBlank() || currentState.destination.isBlank()) {
+            _state.value = currentState.copy(originalPrice = 0.0, displayPrice = 0.0)
             return
         }
 
-        Log.d("TicketViewModel", "✅ Active trip found: ${trip.trip.tripId}")
+        val fromStationId = trip.route.stationDetails.find { it.name == currentState.fromStation }?.stationId
+        val toStationId = trip.route.stationDetails.find { it.name == currentState.destination }?.stationId
 
-        val fromStationId = _fromStation.value
-        if (fromStationId.isNullOrBlank()) {
-            Log.e("TicketViewModel", "❌ 'From' station is missing. Cannot process ticket sale.")
-            _isProcessing.value = false
+        if (fromStationId == null || toStationId == null) {
+            Log.e("TicketViewModel", "❌ Could not resolve station IDs!")
+            _state.value = currentState.copy(originalPrice = 0.0, displayPrice = 0.0)
             return
         }
-
-        val toStationId = _destination.value
-        if (toStationId.isNullOrBlank()) {
-            Log.e("TicketViewModel", "❌ 'To' station is missing. Cannot process ticket sale.")
-            _isProcessing.value = false
-            return
-        }
-
-        val ticketType = _ticketType.value
-        if (ticketType.isNullOrBlank()) {
-            Log.e("TicketViewModel", "❌ Ticket type is missing. Cannot process ticket sale.")
-            _isProcessing.value = false
-            return
-        }
-
-        Log.d("TicketViewModel", "🎟️ Selling ticket: From=$fromStationId, To=$toStationId, Type=$ticketType")
-
-        val remainingSeats = _remainingSeats.value ?: 0
-        if (remainingSeats <= 0) {
-            Log.e("TicketViewModel", "❌ No available seats. Cannot sell ticket.")
-            _sellTicketResult.value = Result.failure(Exception("No available seats"))
-            _isProcessing.value = false
-            return
-        }
-
-
-        Log.d("TicketViewModel", "🪑 Available seats: $remainingSeats")
 
         viewModelScope.launch {
-            try {
-                Log.d("TicketViewModel", "📡 Sending ticket sale request...")
+            val price = tripRepository.getPriceForStations(fromStationId, toStationId)
+            val newOriginalPrice = price ?: 0.0
+            val newDisplayPrice = when (currentState.ticketType) {
+                "Child" -> newOriginalPrice / 2
+                else -> newOriginalPrice - currentState.shortAmount
+            }
+            _state.value = currentState.copy(originalPrice = newOriginalPrice, displayPrice = newDisplayPrice)
+            Log.d("TicketViewModel", "💰 Updated Prices: Original=$newOriginalPrice, Display=$newDisplayPrice")
+        }
+    }
 
-                val result = sellTicketUseCase.execute(trip.trip.tripId, fromStationId, toStationId, ticketType)
-                _sellTicketResult.value = result
+    fun sellTicket(amount: Double) {
+        val currentState = _state.value
+        val trip = activeTrip.value ?: return
+        if (currentState.fromStation.isBlank() || currentState.destination.isBlank() || currentState.displayPrice <= 0) return
+
+        val fromStationId = trip.route.stationDetails.find { it.name == currentState.fromStation }?.stationId
+        val toStationId = trip.route.stationDetails.find { it.name == currentState.destination }?.stationId
+
+        if (fromStationId == null || toStationId == null) {
+            Log.e("TicketViewModel", "❌ Could not resolve station IDs for selling ticket!")
+            _state.value = currentState.copy(sellResult = Result.failure(IllegalArgumentException("Invalid station IDs")), isProcessing = false)
+            return
+        }
+
+        val paymentCategory = when {
+            currentState.ticketType == "Child" -> "Child"
+            currentState.shortAmount > 0 -> "$${currentState.shortAmount} Short"
+            else -> "Adult"
+        }
+
+        Log.d("TicketViewModel", "Selling ticket: tripId=${trip.trip.tripId}, from=$fromStationId, to=$toStationId, paymentCategory=$paymentCategory")
+
+        _state.value = currentState.copy(
+            sellResult = null,  // ✅ Reset previous result
+            isProcessing = true
+        )
+        viewModelScope.launch {
+            try {
+                val result = sellTicketUseCase.execute(
+                    tripId = trip.trip.tripId,
+                    fromStationId = fromStationId,
+                    toStationId = toStationId,
+                    paymentCategory = paymentCategory,
+                    amount = amount
+                )
+
+                _state.value = _state.value.copy(sellResult = result, isProcessing = false)
 
                 if (result.isSuccess) {
-                    Log.d("TicketViewModel", "✅ Ticket sale successful! Updating seats...")
-                    calculateRemainingSeats(trip)
-                } else {
-                    Log.e("TicketViewModel", "❌ Ticket sale failed: ${result.exceptionOrNull()?.message}")
+                    tripRepository.loadActiveTrip() // Force refresh of trip data
+                    _state.value = _state.value.copy(sellResult = null)
                 }
+
             } catch (e: Exception) {
-                Log.e("TicketViewModel", "❌ Exception during ticket sale: ${e.message}")
-                _sellTicketResult.value = Result.failure(e)
-            } finally {
-                _isProcessing.value = false
-                Log.d("TicketViewModel", "✅ Ticket sale process completed.")
+                _state.value = _state.value.copy(sellResult = Result.failure(e), isProcessing = false)
             }
         }
     }
 
-
-    private fun calculateRemainingSeats(trip: TripWithRoute) {
-        val ticketCount = trip.tickets.count { it.status == TicketStatus.VALID }
-        val availableSeats = trip.bus.capacity - ticketCount
-        _remainingSeats.value = availableSeats
+    fun resetFields(context: Context? = null) {
+        val currentState = _state.value
+        _state.value = TicketState(fromStation = currentState.fromStation)
+        context?.let { updateFromStation(it) } // Re-fetch location and trip data
     }
+
 }

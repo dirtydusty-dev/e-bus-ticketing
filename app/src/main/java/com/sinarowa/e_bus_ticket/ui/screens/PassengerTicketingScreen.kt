@@ -1,209 +1,220 @@
 package com.sinarowa.e_bus_ticket.ui.screens
 
+import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.asFlow
-import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.sinarowa.e_bus_ticket.ui.components.DropdownMenuComponent
 import com.sinarowa.e_bus_ticket.viewmodel.TicketViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavController
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
 
-
-@OptIn(ExperimentalLifecycleComposeApi::class)
+@SuppressLint("LongLogTag")
 @Composable
-fun PassengerTicketingScreen(
-    ticketViewModel: TicketViewModel = viewModel(),
-    navController: NavController,
-) {
-    val fromStation by ticketViewModel.fromStation.asFlow().collectAsStateWithLifecycle("")
-    val validDestinations by ticketViewModel.validDestinations.asFlow().collectAsStateWithLifecycle(emptyList())
-    var ticketPrice by remember { mutableStateOf(0.0) }
-    var shortAmount by remember { mutableStateOf(0) }
-    val remainingSeats by ticketViewModel.remainingSeats.asFlow().collectAsStateWithLifecycle(0)
-    val activePassengers by ticketViewModel.activePassengers.asFlow().collectAsStateWithLifecycle(0)
-    var destination by remember { mutableStateOf("") }
-    var ticketType by remember { mutableStateOf("") }
-
+fun PassengerTicketingScreen(viewModel: TicketViewModel = hiltViewModel()) {
     val context = LocalContext.current
-    var isProcessing by remember { mutableStateOf(false) }
+    val state by viewModel.state.collectAsState()
 
-    // ✅ Reset fields when screen loads
+    // Reset fields and fetch location on screen load
     LaunchedEffect(Unit) {
-        ticketViewModel.updateFromStation(context)
-        ticketViewModel.resetFields()
+        viewModel.resetFields(context)
+    }
+
+    LaunchedEffect(state.isProcessing) {
+        if (!state.isProcessing) {
+            Log.d("PassengerTicketingScreen", "✅ Sell process completed, refreshing UI.")
+        }
+    }
+
+    // React to sell result and refresh
+    LaunchedEffect(state.sellResult) {
+        if (state.sellResult?.isSuccess == true) {
+            viewModel.resetFields(context) // Reset and re-fetch after sale
+        }
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Passenger Ticketing", style = MaterialTheme.typography.h5, color = Color.Blue)
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // ✅ From Station (Always Visible)
-        OutlinedTextField(
-            value = fromStation,
-            onValueChange = {},
-            label = { Text("From City") },
-            readOnly = true,
-            modifier = Modifier.fillMaxWidth()
+        Text(
+            "Passenger Ticketing",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ✅ Select Destination (Appears After From is Set)
-        if (fromStation.isNotEmpty()) {
-            DropdownSelector(
-                label = "Select Destination",
-                items = validDestinations,
-                selectedItem = destination,
-                onSelectionChanged = { selectedDestination ->
-                    destination = selectedDestination
-                    ticketViewModel.setDestination(selectedDestination)
+        // Step 1: From City
+        OutlinedTextField(
+            value = state.fromStation,
+            onValueChange = {},
+            label = { Text("From City") },
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            isError = state.fromStation.isBlank(),
+            placeholder = { if (state.fromStation.isBlank()) Text("Fetching location...") }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
 
-                    // ✅ Update ticket price when destination changes
-                    ticketViewModel.updateTicketPrice()
-                    ticketPrice = ticketViewModel.getTicketPriceValue()
-
-                    // ✅ Reset Short Amount when destination changes
-                    shortAmount = 0
-                },
-                displayText = { it }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // ✅ Select Ticket Type (Appears After Destination is Selected)
-        if (destination.isNotEmpty()) {
-            DropdownSelector(
-                label = "Select Ticket Type",
-                items = listOf("Adult", "Child"),
-                selectedItem = ticketType,
-                onSelectionChanged = { newType ->
-                    ticketType = newType
-                    ticketViewModel.setTicketType(newType)
-
-                    if (newType == "Child") {
-                        ticketPrice /= 2 // ✅ Halve the ticket price for child
-                        shortAmount = 0  // ✅ Reset Short Amount when child is selected
-                    } else {
-                        ticketPrice = ticketViewModel.getTicketPriceValue()
-                    }
-                },
-                displayText = { it }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // ✅ Display Ticket Price (Appears After Ticket Type is Selected)
-        if (ticketType.isNotEmpty()) {
-            Text(
-                text = "💰 Ticket Price: $ticketPrice USD",
-                style = MaterialTheme.typography.h6,
-                color = Color.Green
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-
-        // ✅ Short Amount Selector (Only for Adults, Stays Visible Until Reset)
-        if (ticketType == "Adult" && ticketPrice > 0) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Short Amount", style = MaterialTheme.typography.body1)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = {
-                            if (shortAmount > 0) {
-                                shortAmount -= 1
-                                ticketPrice = ticketViewModel.getTicketPriceValue() - shortAmount
-                            }
-                        }
-                    ) {
-                        Text("➖", style = MaterialTheme.typography.h6)
-                    }
-                    Text(
-                        text = "$shortAmount USD",
-                        style = MaterialTheme.typography.h6,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    IconButton(
-                        onClick = {
-                            if (shortAmount + 1 < ticketPrice) {
-                                shortAmount += 1
-                                ticketPrice = ticketViewModel.getTicketPriceValue() - shortAmount
-                            }
-                        }
-                    ) {
-                        Text("➕", style = MaterialTheme.typography.h6)
-                    }
-                }
+        // Step 2: Select Destination
+        if (state.fromStation.isNotBlank()) {
+            if (state.validDestinations.isEmpty()) {
+                Text("No valid destinations available.", color = MaterialTheme.colorScheme.error)
+            } else {
+                DropdownMenuComponent(
+                    label = "Select Destination",
+                    items = state.validDestinations,
+                    selectedItem = state.destination,
+                    onSelectionChanged = { viewModel.setDestination(it) }
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // ✅ Display Final Ticket Price
-        if (ticketPrice > 0) {
+        // Step 3: Select Ticket Type
+        if (state.destination.isNotBlank()) {
+            DropdownMenuComponent(
+                label = "Select Ticket Type",
+                items = listOf("Adult", "Child"),
+                selectedItem = state.ticketType,
+                onSelectionChanged = { viewModel.setTicketType(it) }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Step 4: Short Amount (Adult only)
+        if (state.ticketType == "Adult" && state.originalPrice > 0) {
+            ShortAmountSelector(
+                shortAmount = state.shortAmount,
+                maxAmount = state.originalPrice.toInt(),
+                onAmountChanged = { viewModel.setShortAmount(it) }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Step 5: Final Ticket Price
+        if (state.displayPrice > 0) {
             OutlinedTextField(
-                value = "${ticketPrice - shortAmount} USD",
+                value = "${state.displayPrice} USD",
                 onValueChange = {},
                 label = { Text("Final Ticket Price") },
                 readOnly = true,
                 modifier = Modifier.fillMaxWidth()
             )
+            if (state.shortAmount > 0) {
+                Text("Short Applied: -$${state.shortAmount}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (state.ticketType == "Child") {
+                Text("Child Fare Applied", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        } else if (state.destination.isNotBlank() && state.originalPrice == 0.0) {
+            Text("Error fetching ticket price. Try again.", color = MaterialTheme.colorScheme.error)
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        // Step 6: Seat & Passenger Info
+        if (state.remainingSeats > 0 || state.activePassengers > 0) {
+            TicketSummaryCard(
+                remainingSeats = state.remainingSeats,
+                activePassengers = state.activePassengers
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        if (state.remainingSeats == 0 && state.activePassengers > 0) {
+            Text("No seats available.", color = MaterialTheme.colorScheme.error)
+        }
 
-        // ✅ Seat & Passenger Info
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            elevation = 4.dp
+        // Step 7: Sell & Print Button
+        val isButtonEnabled = state.fromStation.isNotBlank() &&
+                state.destination.isNotBlank() &&
+                state.fromStation != state.destination &&
+                state.displayPrice > 0 &&
+                state.remainingSeats > 0
+
+        Button(
+            onClick = { viewModel.sellTicket(state.displayPrice) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = if (isButtonEnabled) MaterialTheme.colorScheme.tertiary else Color.Gray),
+            shape = RoundedCornerShape(8.dp),
+            enabled = isButtonEnabled && !state.isProcessing
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Seats Remaining", style = MaterialTheme.typography.body2)
-                    Text("$remainingSeats", style = MaterialTheme.typography.h6, color = Color.Green)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Active Passengers", style = MaterialTheme.typography.body2)
-                    Text("$activePassengers", style = MaterialTheme.typography.h6, color = Color.Blue)
-                }
+            if (state.isProcessing) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onTertiary)
+            } else {
+                Icon(Icons.Default.Print, contentDescription = "Print")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Sell & Print", color = MaterialTheme.colorScheme.onTertiary, fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // ✅ Sell & Print Button
+// Short Amount Selector
+@Composable
+fun ShortAmountSelector(shortAmount: Int, maxAmount: Int, onAmountChanged: (Int) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Button(
-            onClick = {
-                isProcessing = true
-                ticketViewModel.sellTicket()
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isProcessing && fromStation.isNotEmpty() && destination.isNotEmpty() && ticketType.isNotEmpty() && ticketPrice > 0
+            onClick = { if (shortAmount > 0) onAmountChanged(shortAmount - 1) },
+            enabled = shortAmount > 0,
+            modifier = Modifier.size(40.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
         ) {
-            if (isProcessing) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-            } else {
-                Text("Sell & Print")
+            Text("-", color = MaterialTheme.colorScheme.onError)
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Text("Short: $$shortAmount", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.width(16.dp))
+        Button(
+            onClick = { if (shortAmount < maxAmount - 1) onAmountChanged(shortAmount + 1) },
+            modifier = Modifier.size(40.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        ) {
+            Text("+", color = MaterialTheme.colorScheme.onPrimary)
+        }
+    }
+}
+
+// Ticket Summary Card
+@Composable
+fun TicketSummaryCard(remainingSeats: Int, activePassengers: Int) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Seats Remaining", style = MaterialTheme.typography.bodyMedium)
+                Text("$remainingSeats", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Active Passengers", style = MaterialTheme.typography.bodyMedium)
+                Text("$activePassengers", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
             }
         }
     }

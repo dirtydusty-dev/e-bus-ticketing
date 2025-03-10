@@ -1,7 +1,9 @@
 package com.sinarowa.e_bus_ticket.viewmodel
 
 import android.content.Context
-import androidx.lifecycle.*
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
 import com.sinarowa.e_bus_ticket.data.local.entities.Bus
 import com.sinarowa.e_bus_ticket.data.repository.BusRepository
@@ -10,11 +12,19 @@ import com.sinarowa.e_bus_ticket.data.repository.TripRepository
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import com.sinarowa.e_bus_ticket.domain.usecase.CreateTripUseCase
 import com.sinarowa.e_bus_ticket.domain.usecase.EndTripUseCase
-import com.sinarowa.e_bus_ticket.domain.usecase.GetActiveTripsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.lang.Exception
 import javax.inject.Inject
+
+/** Trip State Representation */
+data class TripState(
+    val activeTrip: TripWithRoute? = null,
+    val routes: List<RouteEntity> = emptyList(),
+    val buses: List<Bus> = emptyList(),
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
+)
 
 @HiltViewModel
 class TripViewModel @Inject constructor(
@@ -25,115 +35,94 @@ class TripViewModel @Inject constructor(
     private val endTripUseCase: EndTripUseCase
 ) : ViewModel() {
 
-    /*private val _activeTrip = MutableLiveData<TripWithRoute?>()
-    val activeTrip: LiveData<TripWithRoute?> get() = _activeTrip*/
+    // ✅ Use StateFlow for reactivity
+    private val _state = MutableStateFlow(TripState())
+    val state: StateFlow<TripState> get() = _state.asStateFlow()
 
-    val activeTrip: LiveData<TripWithRoute?> get() = tripRepository.activeTrip
-
-    // LiveData to expose the result of the trip creation
-    private val _createTripResult = MutableLiveData<Result<TripWithRoute>>()
-    val createTripResult: LiveData<Result<TripWithRoute>> get() = _createTripResult
-
-    // LiveData for handling UI loading state
-    private val _isLoading = MutableLiveData<Boolean>()
-    val isLoading: LiveData<Boolean> get() = _isLoading
-
-    // LiveData for displaying error messages
-    private val _errorMessage = MutableLiveData<String>()
-    val errorMessage: LiveData<String> get() = _errorMessage
-
-    // LiveData for loading buses and routes
-    private val _routes = MutableLiveData<List<RouteEntity>>()
-    val routes: LiveData<List<RouteEntity>> get() = _routes
-
-    private val _buses = MutableLiveData<List<Bus>>()
-    val buses: LiveData<List<Bus>> get() = _buses
-
-    // Load routes and buses
     init {
         loadRoutes()
         loadBuses()
+        loadActiveTrip()
     }
 
-    fun endTrip(tripId: String) {
+    /** Load the active trip and update state */
+    fun loadActiveTrip() {
+        _state.value = _state.value.copy(isLoading = true)
         viewModelScope.launch {
-            val result = endTripUseCase.execute(tripId)
-            result.onSuccess {
-                tripRepository.setActiveTrip(null)
-                // Handle success (e.g. show a success message)
-            }.onFailure {
-                _errorMessage.value = "Trip could not be closed"
-                // Handle failure (e.g. show an error message)
+            try {
+                tripRepository.loadActiveTrip() // ✅ Load trip (returns Unit)
+
+                // ✅ Wait for activeTrip to be updated
+                val trip = tripRepository.activeTrip.value // Explicitly fetch latest trip
+                _state.value = _state.value.copy(activeTrip = trip, isLoading = false)
+
+                Log.d("TripViewModel", "✅ Active trip loaded: ${trip?.trip?.tripId ?: "None"}")
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isLoading = false, errorMessage = "Failed to load trip")
+                Log.e("TripViewModel", "❌ Error loading active trip: ${e.message}")
             }
         }
     }
 
 
-    // Function to fetch the active trip
-    fun loadActiveTrip() {
-        _isLoading.value = true
+    /** End the current trip */
+    fun endTrip(tripId: String) {
         viewModelScope.launch {
-            tripRepository.loadActiveTrip()
-            _isLoading.value = false
+            try {
+                val result = endTripUseCase.execute(tripId)
+                if (result.isSuccess) {
+                    _state.value = _state.value.copy(activeTrip = null) // ✅ Clear active trip
+                    Log.d("TripViewModel", "🚍 Trip ended successfully")
+                } else {
+                    _state.value = _state.value.copy(errorMessage = "Trip could not be closed")
+                    Log.e("TripViewModel", "❌ Error ending trip")
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(errorMessage = "Error ending trip: ${e.message}")
+            }
         }
     }
 
-
-
+    /** Load available routes */
     private fun loadRoutes() {
         viewModelScope.launch {
             try {
                 val routeList = routeRepository.getAllRoutes()
-                _routes.value = routeList
+                _state.value = _state.value.copy(routes = routeList)
             } catch (e: Exception) {
-                _errorMessage.value = "Error loading routes: ${e.message}"
+                _state.value = _state.value.copy(errorMessage = "Error loading routes: ${e.message}")
             }
         }
     }
 
+    /** Load available buses */
     private fun loadBuses() {
         viewModelScope.launch {
             try {
                 val busList = busRepository.getAllBuses()
-                _buses.value = busList
+                _state.value = _state.value.copy(buses = busList)
             } catch (e: Exception) {
-                _errorMessage.value = "Error loading buses: ${e.message}"
+                _state.value = _state.value.copy(errorMessage = "Error loading buses: ${e.message}")
             }
         }
     }
 
-    // Function to create a new trip
-    fun createTrip(route: RouteEntity, bus: Bus, context: Context) {
-        _isLoading.value = true
+    /** Create a new trip */
+    fun createTrip(route: RouteEntity, bus: Bus) {
+        _state.value = _state.value.copy(isLoading = true)
         viewModelScope.launch {
             try {
-                // Call the CreateTripUseCase and get the result
                 val result = createTripUseCase.execute(route.routeId, bus.busId)
-
-                // Post the result to LiveData
-                _createTripResult.value = result
-
                 if (result.isSuccess) {
-                    // Set the active trip immediately after creation
                     val tripWithRoute = result.getOrNull()
-                    if (tripWithRoute != null) {
-                        tripRepository.setActiveTrip(tripWithRoute)
-                        loadActiveTrip()
-                    }
+                    _state.value = _state.value.copy(activeTrip = tripWithRoute, isLoading = false)
+                    Log.d("TripViewModel", "🆕 New trip created: ${tripWithRoute?.trip?.tripId}")
                 } else {
-                    // Handle failure case
-                    _errorMessage.value = result.exceptionOrNull()?.message
+                    _state.value = _state.value.copy(isLoading = false, errorMessage = result.exceptionOrNull()?.message)
                 }
-
             } catch (e: Exception) {
-                // Handle any exceptions during the trip creation process
-                _errorMessage.value = "Error: ${e.message}"
-            } finally {
-                // Set loading state to false once the request is completed
-                _isLoading.value = false
+                _state.value = _state.value.copy(isLoading = false, errorMessage = "Error: ${e.message}")
             }
         }
     }
-
-
 }

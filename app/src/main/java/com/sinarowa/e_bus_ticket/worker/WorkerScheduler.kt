@@ -44,4 +44,16 @@ class WorkerScheduler @Inject constructor(
             }
         }
     }
+
+
+    private fun scheduleServiceMonitor(context: Context) {
+        val workRequest = PeriodicWorkRequestBuilder<LocationServiceMonitorWorker>(15, TimeUnit.MINUTES)
+            .build()
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "LocationServiceMonitor",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
+    }
+
 }

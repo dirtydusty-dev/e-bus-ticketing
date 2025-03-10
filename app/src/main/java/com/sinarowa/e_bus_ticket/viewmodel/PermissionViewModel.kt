@@ -3,12 +3,15 @@ package com.sinarowa.e_bus_ticket.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import javax.inject.Inject
 
-class PermissionViewModel : ViewModel() {
-    private val _isPermissionGranted = MutableLiveData(false)
-    val isPermissionGranted: LiveData<Boolean> get() = _isPermissionGranted
+class PermissionViewModel @Inject constructor() : ViewModel() {
+    private val _permissionsGranted = MutableLiveData(false)
+    val permissionsGranted: LiveData<Boolean> get() = _permissionsGranted
 
-    fun updatePermissionStatus(granted: Boolean) {
-        _isPermissionGranted.value = granted
+    fun arePermissionsGranted() = _permissionsGranted.value ?: false
+
+    fun updatePermissionsGranted(granted: Boolean) {
+        _permissionsGranted.value = granted
     }
 }

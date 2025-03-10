@@ -32,12 +32,13 @@ object DatabaseSeeder {
                 }
             }
 
+
             // ✅ Insert Stations
             val stations = listOf(
                 StationEntity(stationId = "5", name = "Harare CBD", latitude = -17.8315, longitude = 31.0474),
                 StationEntity(stationId = "2", name = "Causeway", latitude = -17.8245, longitude = 31.0518),
                 StationEntity(stationId = "3", name = "Milton Park", latitude = -17.8147, longitude = 31.0360),
-                StationEntity(stationId = "4", name = "Belvedere", latitude = -17.8281, longitude = 31.0198),
+                StationEntity(stationId = "4", name = "Belvedere", latitude = -17.831390113773832, longitude = 31.040521199914064),
                 StationEntity(stationId = "1", name = "Southerton", latitude = -17.8682, longitude = 31.0147)
             )
 
@@ -69,7 +70,8 @@ object DatabaseSeeder {
                 Price(priceId = "price3", startStationId = "1", destinationStationId = "4", amount = 3.0),
                 Price(priceId = "price4", startStationId = "1", destinationStationId = "5", amount = 4.0),
                 Price(priceId = "price5", startStationId = "2", destinationStationId = "3", amount = 1.5),
-                Price(priceId = "price6", startStationId = "2", destinationStationId = "4", amount = 2.5)
+                Price(priceId = "price6", startStationId = "2", destinationStationId = "4", amount = 2.5),
+                Price(priceId = "price7", startStationId = "4", destinationStationId = "5", amount = 4.0)
             )
 
             priceDao.insertPrices(prices)
