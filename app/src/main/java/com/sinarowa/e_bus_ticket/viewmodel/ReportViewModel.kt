@@ -1,6 +1,5 @@
 package com.sinarowa.e_bus_ticket.viewmodel
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
@@ -11,16 +10,15 @@ import com.sinarowa.e_bus_ticket.data.repository.ExpenseRepository
 import com.sinarowa.e_bus_ticket.data.repository.TripRepository
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class ReportState(
-    val trips: TripWithRoute? = null,
     val selectedTrip: TripWithRoute? = null,
     val tickets: List<Ticket> = emptyList(),
     val expenses: List<Expense> = emptyList(),
@@ -29,8 +27,10 @@ data class ReportState(
     val netSales: Double = 0.0,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
-    val reportType: String = "Check" // "Check", "Daily", "Trip"
+    val reportType: String = "Check", // "Check", "Daily", "Trip"
+    val ticketSummary: Map<String, Pair<Int, Double>> = emptyMap() // 🔥 NEW FIELD
 )
+
 
 @HiltViewModel
 class ReportViewModel @Inject constructor(
@@ -45,14 +45,17 @@ class ReportViewModel @Inject constructor(
     fun loadCheckReport() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, errorMessage = null)
+
             try {
-                val trip = tripRepository.getActiveTripWithRoute()
+                val trip = withContext(Dispatchers.IO) { tripRepository.getActiveTripWithRoute() }
+                val tickets = withContext(Dispatchers.IO) { ticketRepository.getAllTickets() }
+
                 if (trip != null) {
-                    val tickets = ticketRepository.getAllTickets()
                     _state.value = _state.value.copy(
                         selectedTrip = trip,
                         tickets = tickets,
                         totalSales = calculateTotalSales(tickets),
+                        ticketSummary = calculateTicketSummary(tickets), // ✅ Add ticket summary
                         isLoading = false,
                         reportType = "Check"
                     )
@@ -74,17 +77,20 @@ class ReportViewModel @Inject constructor(
     fun loadDailySalesReport() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, errorMessage = null)
+
             try {
-                val trips = tripRepository.getActiveTripWithRoute()
-                val allTickets =  ticketRepository.getAllTickets()
-                val allExpenses = expenseRepository.getAllExpenses()
+                val trip = withContext(Dispatchers.IO) { tripRepository.getActiveTripWithRoute() }
+                val tickets = withContext(Dispatchers.IO) { ticketRepository.getAllTickets() }
+                val expenses = withContext(Dispatchers.IO) { expenseRepository.getAllExpenses() }
+
                 _state.value = _state.value.copy(
-                    trips = trips,
-                    tickets = allTickets,
-                    expenses = allExpenses,
-                    totalSales = calculateTotalSales(allTickets),
-                    totalExpenses = allExpenses.sumOf { it.amount },
-                    netSales = calculateTotalSales(allTickets) - allExpenses.sumOf { it.amount },
+                    selectedTrip = trip,
+                    tickets = tickets,
+                    expenses = expenses,
+                    totalSales = calculateTotalSales(tickets),
+                    totalExpenses = expenses.sumOf { it.amount },
+                    netSales = calculateTotalSales(tickets) - expenses.sumOf { it.amount },
+                    ticketSummary = calculateTicketSummary(tickets), // ✅ Add ticket summary
                     isLoading = false,
                     reportType = "Daily"
                 )
@@ -100,14 +106,17 @@ class ReportViewModel @Inject constructor(
     fun loadTripReport() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, errorMessage = null)
+
             try {
-                val trip = tripRepository.getActiveTripWithRoute()
+                val trip = withContext(Dispatchers.IO) { tripRepository.getActiveTripWithRoute() }
+                val tickets = withContext(Dispatchers.IO) { ticketRepository.getAllTickets() }
+
                 if (trip != null) {
-                    val tickets = ticketRepository.getAllTickets()
                     _state.value = _state.value.copy(
                         selectedTrip = trip,
                         tickets = tickets,
                         totalSales = calculateTotalSales(tickets),
+                        ticketSummary = calculateTicketSummary(tickets), // ✅ Add ticket summary
                         isLoading = false,
                         reportType = "Trip"
                     )
@@ -126,10 +135,19 @@ class ReportViewModel @Inject constructor(
         }
     }
 
+    // 🧮 Helper function to calculate total sales
     private fun calculateTotalSales(tickets: List<Ticket>): Double {
         return tickets.filter { it.status == TicketStatus.VALID }.sumOf { it.amount }
     }
 
-    // Placeholder methods; replace with actual repository calls
-    private suspend fun fetchTrips(): List<TripWithRoute> = emptyList()
+    // 🔥 NEW FUNCTION: Calculate ticket summary dynamically
+    private fun calculateTicketSummary(tickets: List<Ticket>): Map<String, Pair<Int, Double>> {
+        return tickets
+            .filter { it.status == TicketStatus.VALID }
+            .groupBy { it.paymentCategory }  // Group by category (Adult, Child, $1 Short, etc.)
+            .mapValues { (_, ticketList) ->
+                Pair(ticketList.size, ticketList.sumOf { it.amount }) // Count and total amount per category
+            }
+    }
 }
+

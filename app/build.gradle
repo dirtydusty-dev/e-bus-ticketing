@@ -114,6 +114,7 @@ dependencies {
     // Google Play Services Location
     implementation 'com.google.android.gms:play-services-location:21.1.0'
 
+
     // Printing & PDF
     implementation 'androidx.print:print:1.0.0'
     implementation 'com.itextpdf:itext7-core:7.2.2'

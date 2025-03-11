@@ -85,7 +85,7 @@ class MainActivity : ComponentActivity() {
                     val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
                     val reportType = backStackEntry.arguments?.getString("reportType") ?: "Check" // Default to "Check"
 
-                    ReportScreen( tripId = tripId, reportType = reportType)
+                    ReportScreen( reportType = reportType)
                 }
 
             }
