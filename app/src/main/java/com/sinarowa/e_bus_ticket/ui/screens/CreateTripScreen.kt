@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,18 +26,37 @@ import com.sinarowa.e_bus_ticket.ui.theme.LightBlueBackground
 import com.sinarowa.e_bus_ticket.ui.theme.SkyBluePrimary
 import com.sinarowa.e_bus_ticket.ui.theme.YellowSecondary
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
+fun CreateTripScreen(
+    viewModel: TripViewModel,
+    navController: NavController
+) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var selectedRoute by remember { mutableStateOf<RouteEntity?>(null) }
     var selectedBus by remember { mutableStateOf<Bus?>(null) }
 
     LaunchedEffect(state) {
-        Log.d("CreateTripScreen", "State: routes=${state.routes.size}, buses=${state.buses.size}, isLoading=${state.isLoading}")
+        Log.d("CreateTripScreen", "State: routes=${state.routes.size}, buses=${state.buses.size}, isLoading=${state.isLoading}, createTripResult=${state.createTripResult}")
+    }
+
+    LaunchedEffect(state.createTripResult) {
+        if (state.createTripResult?.isSuccess == true) {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Trip created successfully!",
+                    duration = SnackbarDuration.Short
+                )
+                // Navigate back after showing the snackbar
+                navController.popBackStack()
+            }
+        }
     }
 
     Scaffold(
@@ -63,6 +83,35 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
                     }
                 }
             )
+        },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(16.dp)
+            ) { data ->
+                Snackbar(
+                    modifier = Modifier.clip(RoundedCornerShape(12.dp)),
+                    containerColor = SkyBluePrimary,
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "Success",
+                            tint = YellowSecondary
+                        )
+                        Text(
+                            text = data.visuals.message,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         Column(
@@ -141,7 +190,6 @@ fun CreateTripScreen(viewModel: TripViewModel, navController: NavController) {
                         selectedRoute?.let { route ->
                             selectedBus?.let { bus ->
                                 viewModel.createTrip(route, bus)
-                                navController.popBackStack()
                             }
                         }
                     },

@@ -76,10 +76,10 @@ fun TripDashboardScreen(
             }
         } else {
             state.activeTrip?.let { tripWithRoute ->
-                val ticketCount = tripWithRoute.tickets.count { it.status == TicketStatus.VALID }
+                val ticketCount = tripWithRoute.tickets.count { it.paymentCategory != "Luggage" }
                 val luggageCount = tripWithRoute.tickets.count { it.paymentCategory == "Luggage" }
-                val availableSeats = tripWithRoute.bus.capacity - ticketCount
-                val activePassengers = ticketCount
+                val activePassengers = tripWithRoute.tickets.count { it.status == TicketStatus.VALID && it.paymentCategory != "Luggage"}
+                val availableSeats = tripWithRoute.bus.capacity - activePassengers
 
                 Column(
                     modifier = Modifier
@@ -192,14 +192,17 @@ fun TileGrid(navController: NavController, tripWithRoute: TripWithRoute) {
         TileItem("Passenger Tickets", Icons.Filled.Person, YellowSecondary) {
             navController.navigate("passenger_ticketing/${tripWithRoute.trip.tripId}")
         },
-        TileItem("Luggage Tickets", Icons.Filled.Luggage, SkyBluePrimary) {
-            navController.navigate("luggageTickets/${tripWithRoute.trip.tripId}")
-        },
         TileItem("Log Expenses", Icons.Filled.AttachMoney, YellowSecondary) {
             navController.navigate("expenses/${tripWithRoute.trip.tripId}")
         },
-        TileItem("View Reports", Icons.Filled.BarChart, SkyBluePrimary) {
-            navController.navigate("reports/${tripWithRoute.trip.tripId}")
+        TileItem("Check Report", Icons.Filled.BarChart, SkyBluePrimary) {
+            navController.navigate("reports/${tripWithRoute.trip.tripId}/Check")
+        },
+        TileItem("Daily Report", Icons.Filled.BarChart, SkyBluePrimary) {
+            navController.navigate("reports/${tripWithRoute.trip.tripId}/Daily")
+        },
+        TileItem("Trip Report", Icons.Filled.BarChart, SkyBluePrimary) {
+            navController.navigate("reports/${tripWithRoute.trip.tripId}/Trip")
         },
         TileItem("End Trip", Icons.Filled.Warning, Color.Red) {
             // Handle End Trip (to be implemented)

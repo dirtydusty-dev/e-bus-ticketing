@@ -20,7 +20,7 @@ import com.sinarowa.e_bus_ticket.data.local.entities.*
         RouteStop::class,
         TripSyncQueue::class
     ],
-    version = 10, // ✅ Incremented version for schema changes
+    version = 11, // ✅ Incremented version for schema changes
     exportSchema = false // ✅ Export schema for migrations
 )
 @TypeConverters(Converters::class)

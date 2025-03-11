@@ -21,11 +21,6 @@ data class TripWithRoute(
     )
     var bus: Bus,
 
-    /*@Relation(
-        parentColumn = "trip_routeId",
-        entityColumn = "startStationId"
-    )
-    var prices: List<Price>,*/
 
     @Relation(
         parentColumn = "tripId",

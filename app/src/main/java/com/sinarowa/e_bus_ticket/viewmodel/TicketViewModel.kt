@@ -28,7 +28,9 @@ data class TicketState(
     val remainingSeats: Int = 0,
     val activePassengers: Int = 0,
     val isProcessing: Boolean = false,
-    val sellResult: Result<Unit>? = null
+    val sellResult: Result<Unit>? = null,
+    val customPrice: Double = 0.0,
+    val description: String = ""
 )
 
 @HiltViewModel
@@ -51,12 +53,16 @@ class TicketViewModel @Inject constructor(
 
     private fun updateTripData(trip: TripWithRoute) {
         Log.d("TicketViewModel", "Trip: ${trip.trip.tripId}, Bus Capacity: ${trip.bus.capacity}, Tickets: ${trip.tickets.size}")
-        val ticketCount = trip.tickets.count { it.status == TicketStatus.VALID }
-        Log.d("TicketViewModel", "Ticket Count: $ticketCount")
+        val ticketCount = trip.tickets.count { it.paymentCategory != "Luggage" }
+        // Count only non-luggage tickets with VALID status as active passengers
+        val activePassengers = trip.tickets.count {
+            it.status == TicketStatus.VALID && it.paymentCategory != "Luggage"
+        }
+        Log.d("TicketViewModel", "Ticket Count: $ticketCount, Active Passengers (non-luggage): $activePassengers")
         val currentState = _state.value
         _state.value = currentState.copy(
-            remainingSeats = trip.bus.capacity - ticketCount,
-            activePassengers = ticketCount,
+            remainingSeats = trip.bus.capacity - activePassengers,
+            activePassengers = activePassengers,
             validDestinations = getValidDestinations(trip, currentState.fromStation)
         )
         Log.d("TicketViewModel", "Updated State: ${_state.value}")
@@ -128,10 +134,34 @@ class TicketViewModel @Inject constructor(
         updatePrice()
     }
 
+    fun setCustomPrice(price: Double) {
+        val currentState = _state.value
+        _state.value = currentState.copy(
+            customPrice = price,
+            displayPrice = if (currentState.ticketType == "Luggage") price else currentState.displayPrice
+        )
+        Log.d("TicketViewModel", "💰 Custom Price Set: $price")
+    }
+
+    fun setDescription(description: String) {
+        val currentState = _state.value
+        _state.value = currentState.copy(description = description)
+        Log.d("TicketViewModel", "📝 Description Set: $description")
+    }
+
     private fun updatePrice() {
         val currentState = _state.value
         if (currentState.fromStation.isBlank() || currentState.destination.isBlank()) {
             _state.value = currentState.copy(originalPrice = 0.0, displayPrice = 0.0)
+            return
+        }
+
+        if (currentState.ticketType == "Luggage") {
+            _state.value = currentState.copy(
+                originalPrice = currentState.customPrice,
+                displayPrice = currentState.customPrice
+            )
+            Log.d("TicketViewModel", "💰 Luggage Price: Original=${currentState.customPrice}, Display=${currentState.customPrice}")
             return
         }
 
@@ -152,7 +182,7 @@ class TicketViewModel @Inject constructor(
             val newOriginalPrice = price
             val newDisplayPrice = when (currentState.ticketType) {
                 "Child" -> newOriginalPrice / 2
-                else -> newOriginalPrice - currentState.shortAmount
+                else -> newOriginalPrice - currentState.shortAmount // Adult
             }
             _state.value = currentState.copy(originalPrice = newOriginalPrice, displayPrice = newDisplayPrice)
             Log.d("TicketViewModel", "💰 Updated Prices: Original=$newOriginalPrice, Display=$newDisplayPrice")
@@ -161,7 +191,7 @@ class TicketViewModel @Inject constructor(
 
     fun sellTicket(amount: Double) {
         val currentState = _state.value
-        if (currentState.fromStation.isBlank() || currentState.destination.isBlank() || currentState.displayPrice <= 0) return
+        if (currentState.fromStation.isBlank() || currentState.destination.isBlank() || amount <= 0) return
 
         val fromStationId = currentTrip.route.stationDetails.find { it.name == currentState.fromStation }?.stationId
         val toStationId = currentTrip.route.stationDetails.find { it.name == currentState.destination }?.stationId
@@ -174,11 +204,12 @@ class TicketViewModel @Inject constructor(
 
         val paymentCategory = when {
             currentState.ticketType == "Child" -> "Child"
+            currentState.ticketType == "Luggage" -> "Luggage"
             currentState.shortAmount > 0 -> "$${currentState.shortAmount} Short"
             else -> "Adult"
         }
 
-        Log.d("TicketViewModel", "Selling ticket: tripId=${currentTrip.trip.tripId}, from=$fromStationId, to=$toStationId, paymentCategory=$paymentCategory")
+        Log.d("TicketViewModel", "Selling ticket: tripId=${currentTrip.trip.tripId}, from=$fromStationId, to=$toStationId, paymentCategory=$paymentCategory, amount=$amount, description=${currentState.description}")
 
         _state.value = currentState.copy(sellResult = null, isProcessing = true)
         viewModelScope.launch {
@@ -188,25 +219,24 @@ class TicketViewModel @Inject constructor(
                     fromStationId = fromStationId,
                     toStationId = toStationId,
                     paymentCategory = paymentCategory,
-                    amount = amount
+                    amount = amount,
+                    description = if (currentState.ticketType == "Luggage") currentState.description else null
                 )
 
                 _state.value = _state.value.copy(sellResult = result, isProcessing = false)
 
                 if (result.isSuccess) {
-                    // Refresh trip data and update both view models
-                    tripRepository.loadActiveTrip() // Async refresh
-                    val updatedTrip = tripRepository.activeTrip.value // Get latest value
+                    tripRepository.loadActiveTrip()
+                    val updatedTrip = tripRepository.activeTrip.value
                     if (updatedTrip != null) {
                         currentTrip = updatedTrip
                         updateTripData(updatedTrip)
-                        tripRepository.updateActiveTrip(updatedTrip) // Update TripViewModel's LiveData
+                        tripRepository.updateActiveTrip(updatedTrip)
                     } else {
                         Log.e("TicketViewModel", "❌ Failed to refresh trip data after sale")
-                        tripRepository.loadActiveTrip() // Retry loading
+                        tripRepository.loadActiveTrip()
                     }
                 }
-
             } catch (e: Exception) {
                 Log.e("TicketViewModel", "Sell ticket failed: ${e.message}")
                 _state.value = _state.value.copy(sellResult = Result.failure(e), isProcessing = false)

@@ -29,4 +29,8 @@ interface TicketDao {
     suspend fun getLastTicketForTrip(tripId: String): Ticket?
 
 
+    @Query("SELECT * from tickets")
+    suspend fun getAllTickets(): List<Ticket>
+
+
 }

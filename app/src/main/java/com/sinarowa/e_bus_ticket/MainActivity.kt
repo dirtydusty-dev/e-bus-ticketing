@@ -26,7 +26,9 @@ import androidx.work.WorkManager
 import com.sinarowa.e_bus_ticket.service.LocationService
 import com.sinarowa.e_bus_ticket.ui.screens.CreateTripScreen
 import com.sinarowa.e_bus_ticket.ui.screens.HomeScreen
+import com.sinarowa.e_bus_ticket.ui.screens.LogExpenseScreen
 import com.sinarowa.e_bus_ticket.ui.screens.PassengerTicketingScreen
+import com.sinarowa.e_bus_ticket.ui.screens.ReportScreen
 import com.sinarowa.e_bus_ticket.ui.screens.RequestPermissionsScreen
 import com.sinarowa.e_bus_ticket.ui.screens.TripDashboardScreen
 import com.sinarowa.e_bus_ticket.viewmodel.PermissionViewModel
@@ -75,6 +77,17 @@ class MainActivity : ComponentActivity() {
                     val activeTrip = state.activeTrip ?: throw IllegalStateException("No active trip found for ID: $tripId")
                     PassengerTicketingScreen(activeTrip = activeTrip)
                 }
+                composable("expenses/{tripId}") { backStackEntry ->
+                    val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
+                    LogExpenseScreen(navController = navController, tripId = tripId)
+                }
+                composable("reports/{tripId}/{reportType}") { backStackEntry ->
+                    val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
+                    val reportType = backStackEntry.arguments?.getString("reportType") ?: "Check" // Default to "Check"
+
+                    ReportScreen( tripId = tripId, reportType = reportType)
+                }
+
             }
         }
 

@@ -17,7 +17,7 @@ data class Expense(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(name = "expense_tripId")val tripId: String,
     val expenseType: String, // e.g. "Fuel", "Food", "Repair"
-    val description: String,
+    val description: String? = null,
     val amount: Double,
     val creationTime: String,
     var syncStatus: SyncStatus = SyncStatus.PENDING

@@ -19,10 +19,11 @@ import com.sinarowa.e_bus_ticket.data.local.enums.TicketStatus
 data class Ticket(
     @PrimaryKey val ticketId: String = "",
     @ColumnInfo(name = "ticket_tripId")val tripId: String = "",
-    @ColumnInfo(name = "ticket_priceId")val priceId: String = "",
+    @ColumnInfo(name = "ticket_priceId")val priceId: String? = "",
     val paymentCategory: String = "",  // e.g. "Adult", "Child", "Senior"
     val creationTime: String = "", // Stored as String for easy sync
     val amount: Double = 0.00,
     var status: TicketStatus = TicketStatus.VALID,
-    var syncStatus: SyncStatus = SyncStatus.PENDING
+    var syncStatus: SyncStatus = SyncStatus.PENDING,
+    var luggageDescription: String? = null
 )

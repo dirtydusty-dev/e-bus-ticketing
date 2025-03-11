@@ -28,6 +28,10 @@ class ExpenseRepository @Inject constructor(private val expenseDao: ExpenseDao) 
         return expenseDao.getUnsyncedExpenses(tripId, status)
     }
 
+    suspend fun getAllExpenses(): List<Expense>{
+        return expenseDao.getAllExpenses()
+    }
+
     suspend fun updateExpenseSyncStatus(expense: Expense) {
         expenseDao.updateExpenseSyncStatus(expense)
     }

@@ -19,6 +19,10 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE expense_tripId = :tripId")
     fun getExpensesForTrip(tripId: Long): Flow<List<Expense>>
 
+    @Query("SELECT * FROM expenses")
+    fun getAllExpenses(): List<Expense>
+
+
     @Query("SELECT SUM(amount) FROM expenses WHERE expense_tripId = :tripId")
     fun getTotalExpensesForTrip(tripId: Long): Flow<Double?>
 

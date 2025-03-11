@@ -25,7 +25,8 @@ data class TripState(
     val routes: List<RouteEntity> = emptyList(),
     val buses: List<Bus> = emptyList(),
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val createTripResult: Result<TripWithRoute>? = null // Added for success tracking
 )
 
 @HiltViewModel
@@ -135,7 +136,8 @@ class TripViewModel @Inject constructor(
                     tripRepository.updateActiveTrip(tripWithRoute!!) // Update active trip
                     _state.value = _state.value.copy(
                         activeTrip = tripWithRoute,
-                        isLoading = false
+                        isLoading = false,
+                        createTripResult = result,
                     )
                     Log.d("TripViewModel", "🆕 New trip created: ${tripWithRoute?.trip?.tripId}")
                 } else {
