@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -81,12 +82,13 @@ class MainActivity : ComponentActivity() {
                     val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
                     LogExpenseScreen(navController = navController, tripId = tripId)
                 }
-                composable("reports/{tripId}/{reportType}") { backStackEntry ->
-                    val tripId = backStackEntry.arguments?.getString("tripId") ?: ""
-                    val reportType = backStackEntry.arguments?.getString("reportType") ?: "Check" // Default to "Check"
-
-                    ReportScreen( reportType = reportType)
+                composable("reports/{reportType}") { backStackEntry ->
+                    val reportType = backStackEntry.arguments?.getString("reportType") ?: "Daily"
+                    ReportScreen(reportType = reportType) // ✅ Pass tripId properly
                 }
+
+
+
 
             }
         }

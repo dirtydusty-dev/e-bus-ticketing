@@ -188,6 +188,9 @@ fun StatItem(label: String, value: Int, color: Color) {
 
 @Composable
 fun TileGrid(navController: NavController, tripWithRoute: TripWithRoute) {
+    var showDialog by remember { mutableStateOf(false) } // 🔥 State to trigger dialog
+    var selectedTripId by remember { mutableStateOf("") } // 🔥 Store trip ID
+
     val tiles = listOf(
         TileItem("Passenger Tickets", Icons.Filled.Person, YellowSecondary) {
             navController.navigate("passenger_ticketing/${tripWithRoute.trip.tripId}")
@@ -195,14 +198,9 @@ fun TileGrid(navController: NavController, tripWithRoute: TripWithRoute) {
         TileItem("Log Expenses", Icons.Filled.AttachMoney, YellowSecondary) {
             navController.navigate("expenses/${tripWithRoute.trip.tripId}")
         },
-        TileItem("Check Report", Icons.Filled.BarChart, SkyBluePrimary) {
-            navController.navigate("reports/${tripWithRoute.trip.tripId}/Check")
-        },
-        TileItem("Daily Report", Icons.Filled.BarChart, SkyBluePrimary) {
-            navController.navigate("reports/${tripWithRoute.trip.tripId}/Daily")
-        },
-        TileItem("Trip Report", Icons.Filled.BarChart, SkyBluePrimary) {
-            navController.navigate("reports/${tripWithRoute.trip.tripId}/Trip")
+        TileItem("View Reports", Icons.Filled.BarChart, SkyBluePrimary) {
+            selectedTripId = tripWithRoute.trip.tripId
+            showDialog = true // ✅ Trigger dialog
         },
         TileItem("End Trip", Icons.Filled.Warning, Color.Red) {
             // Handle End Trip (to be implemented)
@@ -220,7 +218,45 @@ fun TileGrid(navController: NavController, tripWithRoute: TripWithRoute) {
             DashboardTile(tile)
         }
     }
+
+    // ✅ Show Dialog when `showDialog` is true
+    if (showDialog) {
+        showReportSelectionDialog(
+            navController = navController,
+            tripId = selectedTripId,
+            onDismiss = { showDialog = false } // ✅ Close dialog when dismissed
+        )
+    }
 }
+
+
+@Composable
+fun showReportSelectionDialog(navController: NavController, tripId: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { onDismiss() }, // ✅ Close dialog on outside click
+        title = { Text("Select Report Type") },
+        text = { Text("Choose which report you want to view.") },
+        confirmButton = {
+            Column {
+                Button(onClick = {
+                    navController.navigate("reports/Daily")
+                    onDismiss()
+                }) {
+                    Text("Daily Report")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = {
+                    navController.navigate("reports/Trip")
+                    onDismiss()
+                }) {
+                    Text("Trip Report")
+                }
+            }
+        }
+    )
+}
+
+
 
 data class TileItem(
     val label: String,
