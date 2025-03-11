@@ -1,12 +1,12 @@
 package com.sinarowa.e_bus_ticket.ui.screens
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,14 +14,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.sinarowa.e_bus_ticket.data.local.enums.TicketStatus
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
+import com.sinarowa.e_bus_ticket.ui.theme.SkyBluePrimary
+import com.sinarowa.e_bus_ticket.ui.theme.YellowSecondary
+import com.sinarowa.e_bus_ticket.ui.theme.LightBlueBackground
 import com.sinarowa.e_bus_ticket.viewmodel.TripViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripDashboardScreen(
     navController: NavController,
@@ -29,41 +36,73 @@ fun TripDashboardScreen(
 ) {
     val state by tripViewModel.state.collectAsState()
 
-    if (state.isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-        }
-        return
-    }
-
-    state.activeTrip?.let { tripWithRoute ->
-        val ticketCount = tripWithRoute.tickets.count { it.status == TicketStatus.VALID }
-        val luggageCount = tripWithRoute.tickets.count { it.paymentCategory == "Luggage" }
-        val availableSeats = tripWithRoute.bus.capacity - ticketCount
-        val activePassengers = ticketCount
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
-        ) {
-            TripInfoCard(
-                trip = tripWithRoute,
-                ticketCount = ticketCount,
-                luggageCount = luggageCount,
-                availableSeats = availableSeats,
-                activePassengers = activePassengers
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = LightBlueBackground,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Trip Dashboard",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = SkyBluePrimary),
+                actions = {
+                    IconButton(onClick = { tripViewModel.refreshTrip() }) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = Color.White
+                        )
+                    }
+                }
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            TileGrid(navController, tripWithRoute.trip.tripId)
         }
-    } ?: run {
-        EmptyState(navController)
+    ) { paddingValues ->
+        if (state.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = YellowSecondary,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+        } else {
+            state.activeTrip?.let { tripWithRoute ->
+                val ticketCount = tripWithRoute.tickets.count { it.status == TicketStatus.VALID }
+                val luggageCount = tripWithRoute.tickets.count { it.paymentCategory == "Luggage" }
+                val availableSeats = tripWithRoute.bus.capacity - ticketCount
+                val activePassengers = ticketCount
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(LightBlueBackground)
+                        .padding(paddingValues)
+                        .padding(horizontal = 16.dp, vertical = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    TripInfoCard(
+                        trip = tripWithRoute,
+                        ticketCount = ticketCount,
+                        luggageCount = luggageCount,
+                        availableSeats = availableSeats,
+                        activePassengers = activePassengers
+                    )
+                    TileGrid(navController, tripWithRoute)
+                }
+            } ?: run {
+                EmptyState(navController, Modifier.padding(paddingValues))
+            }
+        }
     }
 }
 
@@ -76,56 +115,103 @@ fun TripInfoCard(
     activePassengers: Int
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.elevatedCardElevation(8.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = SkyBluePrimary)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier
+                .padding(20.dp)
+                .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 Icons.Filled.DirectionsBus,
                 contentDescription = "Trip Icon",
-                tint = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(40.dp)
+                tint = Color.White,
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                    .padding(8.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Trip: ${trip.route.route.routeName}",
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                "Bus: ${trip.bus.busName}",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.9f),
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(12.dp))
-            Text("Trip: ${trip.route.route.routeName}", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimary)
-            Text("Bus: ${trip.bus.busName}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onPrimary)
-            Text("Passenger Tickets Sold: $ticketCount", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary)
-            Text("Luggage Tickets Sold: $luggageCount", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary)
-            Text("Available Seats: $availableSeats", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary)
-            Text("Active Passengers: $activePassengers", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimary)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem("Tickets", ticketCount, Color.White)
+                StatItem("Luggage", luggageCount, Color.White)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem("Seats", availableSeats, Color.White)
+                StatItem("Passengers", activePassengers, Color.White)
+            }
         }
     }
 }
 
 @Composable
-fun TileGrid(navController: NavController, tripId: String) {
+fun StatItem(label: String, value: Int, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value.toString(),
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            color = color
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = color.copy(alpha = 0.8f),
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun TileGrid(navController: NavController, tripWithRoute: TripWithRoute) {
     val tiles = listOf(
-        TileItem("Passenger Tickets", Icons.Filled.Person, MaterialTheme.colorScheme.primary) {
-            navController.navigate("passenger_ticketing")
+        TileItem("Passenger Tickets", Icons.Filled.Person, YellowSecondary) {
+            navController.navigate("passenger_ticketing/${tripWithRoute.trip.tripId}")
         },
-        TileItem("Luggage Tickets", Icons.Filled.Luggage, MaterialTheme.colorScheme.secondary) {
-            navController.navigate("luggageTickets/$tripId")
+        TileItem("Luggage Tickets", Icons.Filled.Luggage, SkyBluePrimary) {
+            navController.navigate("luggageTickets/${tripWithRoute.trip.tripId}")
         },
-        TileItem("Log Expenses", Icons.Filled.AttachMoney, MaterialTheme.colorScheme.tertiary) {
-            navController.navigate("expenses/$tripId")
+        TileItem("Log Expenses", Icons.Filled.AttachMoney, YellowSecondary) {
+            navController.navigate("expenses/${tripWithRoute.trip.tripId}")
         },
-        TileItem("View Reports", Icons.Filled.BarChart, MaterialTheme.colorScheme.surfaceVariant) {
-            navController.navigate("reports/$tripId")
+        TileItem("View Reports", Icons.Filled.BarChart, SkyBluePrimary) {
+            navController.navigate("reports/${tripWithRoute.trip.tripId}")
         },
         TileItem("End Trip", Icons.Filled.Warning, Color.Red) {
-            // Handle End Trip
+            // Handle End Trip (to be implemented)
         }
     )
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(8.dp)
+        contentPadding = PaddingValues(8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(tiles) { tile ->
             DashboardTile(tile)
@@ -144,13 +230,12 @@ data class TileItem(
 fun DashboardTile(tile: TileItem) {
     Card(
         modifier = Modifier
-            .padding(8.dp)
             .fillMaxWidth()
             .aspectRatio(1f)
             .clickable { tile.onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = tile.color),
-        elevation = CardDefaults.elevatedCardElevation(6.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(
             modifier = Modifier
@@ -163,64 +248,61 @@ fun DashboardTile(tile: TileItem) {
                 imageVector = tile.icon,
                 contentDescription = tile.label,
                 tint = Color.White,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                    .padding(8.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = tile.label,
                 color = Color.White,
                 fontSize = 16.sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
         }
     }
 }
 
 @Composable
-fun EndTripDialog(
-    showEndTripDialog: Boolean,
-    confirmationText: String,
-    onConfirmationTextChange: (String) -> Unit,
-    endTripCountdown: Int,
-    isCountingDown: Boolean,
-    isConfirmEnabled: Boolean,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    if (showEndTripDialog) {
-        AlertDialog(
-            onDismissRequest = { onDismiss() },
-            title = { Text("Confirm End Trip", color = MaterialTheme.colorScheme.primary, fontSize = 20.sp) },
-            text = {
-                Column {
-                    Text("⚠️ Are you sure you want to end this trip?")
-                    Text("🚨 Once ended, no more tickets or expenses can be logged.")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = confirmationText,
-                        onValueChange = onConfirmationTextChange,
-                        label = { Text("Type 'END' to confirm") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (isCountingDown) {
-                        Text("⌛ Confirming in $endTripCountdown seconds...", color = Color.Red)
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { onConfirm() },
-                    colors = ButtonDefaults.buttonColors(containerColor = if (isConfirmEnabled) Color.Red else Color.Gray),
-                    enabled = isConfirmEnabled
-                ) {
-                    Text("Yes, End Trip", color = Color.White)
-                }
-            },
-            dismissButton = {
-                Button(onClick = { onDismiss() }, colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)) {
-                    Text("Cancel", color = Color.White)
-                }
-            }
+fun EmptyState(navController: NavController, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            "No Active Trip",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = SkyBluePrimary
         )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "Start a new trip to begin.",
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { navController.navigate("createTrip") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .height(56.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = YellowSecondary),
+            shape = RoundedCornerShape(12.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+        ) {
+            Text(
+                "Create New Trip",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        }
     }
 }

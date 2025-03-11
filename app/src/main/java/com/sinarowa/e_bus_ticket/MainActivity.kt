@@ -12,6 +12,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -67,7 +69,12 @@ class MainActivity : ComponentActivity() {
                 composable("home") { HomeScreen(tripViewModel, navController) }
                 composable("createTrip") { CreateTripScreen(tripViewModel, navController) }
                 composable("tripDashboard") { TripDashboardScreen(navController, tripViewModel) }
-                composable("passenger_ticketing") { PassengerTicketingScreen() }
+                composable("passenger_ticketing/{tripId}") { backStackEntry ->
+                    val tripId = backStackEntry.arguments?.getString("tripId")
+                    val state by tripViewModel.state.collectAsState()
+                    val activeTrip = state.activeTrip ?: throw IllegalStateException("No active trip found for ID: $tripId")
+                    PassengerTicketingScreen(activeTrip = activeTrip)
+                }
             }
         }
 

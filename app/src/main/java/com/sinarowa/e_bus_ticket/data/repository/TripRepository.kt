@@ -14,7 +14,6 @@ import com.sinarowa.e_bus_ticket.data.local.entities.Trip
 import com.sinarowa.e_bus_ticket.data.local.enums.SyncStatus
 import com.sinarowa.e_bus_ticket.data.local.enums.TripStatus
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
-import com.sinarowa.e_bus_ticket.domain.usecase.GetActiveTripsUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,34 +22,31 @@ import javax.inject.Inject
 
 class TripRepository @Inject constructor(
     private val tripDao: TripDao,
-    private val routeDao: RouteDao,   // Assuming you have this
+    private val routeDao: RouteDao,
     private val busDao: BusDao,
-    private val priceDao: PriceDao,
-    //private val getActiveTripsUseCase: GetActiveTripsUseCase
+    private val priceDao: PriceDao
 ) {
-
 
     private val _activeTrip = MutableLiveData<TripWithRoute?>()
     val activeTrip: LiveData<TripWithRoute?> get() = _activeTrip
 
     init {
-        // ✅ Load the active trip asynchronously in a coroutine
         CoroutineScope(Dispatchers.IO).launch {
             loadActiveTrip()
         }
     }
 
-    // Load active trip from DB or API
+    fun updateActiveTrip(trip: TripWithRoute?) {
+        _activeTrip.postValue(trip)
+        Log.d("TripRepository", "Updated activeTrip: ${trip?.trip?.tripId ?: "null"}")
+    }
+
     suspend fun loadActiveTrip() {
         withContext(Dispatchers.IO) {
             try {
                 val trip = tripDao.getActiveTripWithRoute(TripStatus.IN_PROGRESS)
-                if (trip != null) {
-                    Log.d("TripRepository", "✅ Active trip loaded: ${trip.trip.tripId}")
-                } else {
-                    Log.e("TripRepository", "❌ No active trip found in database.")
-                }
-                _activeTrip.postValue(trip) // ✅ Ensure value is posted even if null
+                _activeTrip.postValue(trip)
+                Log.d("TripRepository", "✅ Active trip loaded: ${trip?.trip?.tripId ?: "None"}")
             } catch (e: Exception) {
                 Log.e("TripRepository", "❌ Error loading active trip: ${e.message}")
                 _activeTrip.postValue(null)
@@ -58,33 +54,26 @@ class TripRepository @Inject constructor(
         }
     }
 
-
-    // Set active trip manually (e.g. when creating a trip)
-    fun setActiveTrip(trip: TripWithRoute?) {
-        _activeTrip.value = trip
-    }
-
-
     suspend fun createTrip(tripWithRoute: TripWithRoute) {
-        // Insert the route if it doesn't exist
-        val routeId = insertRouteIfNotExists(tripWithRoute.route.route)
-        val busId = insertBusIfNotExists(tripWithRoute.bus)
-
-        // Create the trip
-        val trip = tripWithRoute.trip.copy(routeId = routeId, busId = busId)
-        tripDao.insertTrip(trip)
-    }
-
-    // Insert route if not already exists
-    private suspend fun insertRouteIfNotExists(route: RouteEntity): String {
-        // Check if route already exists
-        val existingRoute = routeDao.getRouteByName(route.routeName)
-        return if (existingRoute.isEmpty()) {
-            route.routeId
-        } else {
-            existingRoute.first().routeId // Return the existing routeId
+        withContext(Dispatchers.IO) {
+            val routeId = tripWithRoute.route.route.routeId
+            val busId = tripWithRoute.bus.busId
+            val trip = tripWithRoute.trip.copy(routeId = routeId, busId = busId)
+            tripDao.insertTrip(trip)
+            updateActiveTrip(tripWithRoute) // Ensure active trip is updated
         }
     }
+
+    private suspend fun insertRouteIfNotExists(route: RouteEntity): String {
+        val existingRoute = routeDao.getRouteByName(route.routeName)
+        return if (existingRoute.isEmpty()) {
+            routeDao.insert(route)
+            route.routeId
+        } else {
+            existingRoute.first().routeId
+        }
+    }
+
 
     suspend fun getPricesForRoute(routeId: String): List<Price> {
         return priceDao.getPricesForRoute(routeId)
@@ -94,40 +83,19 @@ class TripRepository @Inject constructor(
         return priceDao.getPrice(startStationId, destinationStationId)?.amount ?: 0.0
     }
 
-    // Insert bus if not already exists
-    private suspend fun insertBusIfNotExists(bus: Bus): String {
-        // Check if bus already exists
-        val existingBus = busDao.getBusByRegistrationNumber(bus.busNumber)
-        return if (existingBus == null) {
-            bus.busId
-        } else {
-            existingBus.busId
-        }
+    suspend fun hasActiveTrip(): Boolean = tripDao.getActiveTrip() != null
+
+    suspend fun getActiveTrip(): Trip? = tripDao.getActiveTrip()
+
+    suspend fun getActiveTripWithRoute(): TripWithRoute? = tripDao.getActiveTripWithRoute(TripStatus.IN_PROGRESS)
+
+    suspend fun updateTripSyncStatus(tripId: String) {
+        tripDao.updateSyncStatus(tripId, SyncStatus.SYNCED)
     }
 
-    suspend fun hasActiveTrip(): Boolean {
-        return tripDao.getActiveTrip() != null
-    }
-
-    suspend fun getActiveTrip(): Trip? {
-        return tripDao.getActiveTrip()
-    }
-
-    // Get active trip with its route
-    suspend fun getActiveTripWithRoute(): TripWithRoute? {
-        return tripDao.getActiveTripWithRoute(TripStatus.IN_PROGRESS)
-    }
-
-    suspend fun updateTripSyncStatus(tripId: String){
-        tripDao.updateSyncStatus(tripId,SyncStatus.SYNCED)
-    }
-
-    suspend fun getTripById(tripId: String): Trip? {
-        return tripDao.getTripById(tripId)
-    }
+    suspend fun getTripById(tripId: String): Trip? = tripDao.getTripById(tripId)
 
     suspend fun updateTripStatus(trip: Trip) {
         tripDao.updateTripStatus(trip)
     }
-
 }

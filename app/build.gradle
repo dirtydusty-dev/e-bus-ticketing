@@ -66,6 +66,7 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-runtime-compose:2.7.0"
     implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
 
+
     // Hilt WorkManager integration
     implementation("androidx.hilt:hilt-work:1.0.0")
     kapt("androidx.hilt:hilt-compiler:1.0.0")

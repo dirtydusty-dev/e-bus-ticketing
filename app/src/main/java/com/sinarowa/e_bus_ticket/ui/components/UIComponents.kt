@@ -1,58 +1,64 @@
 package com.sinarowa.e_bus_ticket.ui.components
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DropdownMenuComponent(label: String, items: List<String>, selectedItem: String, onSelectionChanged: (String) -> Unit) {
+fun DropdownMenuComponent(
+    label: String,
+    items: List<String>,
+    selectedItem: String,
+    onSelectionChanged: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    elevation: Dp = 4.dp, // Elevation parameter
+    colors: TextFieldColors = TextFieldDefaults.colors()
+) {
     var expanded by remember { mutableStateOf(false) }
+    var selectedText by remember { mutableStateOf(selectedItem) }
 
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = selectedItem,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            modifier = Modifier.fillMaxWidth(),
-            trailingIcon = {
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown")
-                }
-            },
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = Color(0xFF1565C0),
-                unfocusedBorderColor = Color.Gray
+    Card(
+        modifier = modifier,
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation), // Apply elevation via Card
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = selectedText,
+                onValueChange = {},
+                label = { Text(label) },
+                readOnly = true,
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                colors = colors,
+                shape = RoundedCornerShape(12.dp)
             )
-        )
-
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            items.forEach { item ->
-                DropdownMenuItem(
-                    text = { Text(item) },
-                    onClick = {
-                        onSelectionChanged(item)
-                        expanded = false
-                    }
-                )
-
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                items.forEach { item ->
+                    DropdownMenuItem(
+                        text = { Text(item) },
+                        onClick = {
+                            selectedText = item
+                            onSelectionChanged(item)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
     }
