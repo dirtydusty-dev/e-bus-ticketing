@@ -6,6 +6,7 @@ import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 data class ReportState(
     val selectedTrip: TripWithRoute? = null, // 🚍 Holds the trip being reported
     val tickets: List<Ticket> = emptyList(), // 🎟 List of tickets
+    val ticketsWithRoute: List<TicketWithRoute> = emptyList(),
     val expenses: List<Expense> = emptyList(), // 💰 List of expenses
     val totalSales: Double = 0.0, // 💵 Total ticket sales
     val totalExpenses: Double = 0.0, // 💵 Total expenses

@@ -9,7 +9,9 @@ import com.sinarowa.e_bus_ticket.data.local.entities.Bus
 import com.sinarowa.e_bus_ticket.data.local.entities.RouteEntity
 import com.sinarowa.e_bus_ticket.data.repository.BusRepository
 import com.sinarowa.e_bus_ticket.data.repository.RouteRepository
+import com.sinarowa.e_bus_ticket.data.repository.TicketRepository
 import com.sinarowa.e_bus_ticket.data.repository.TripRepository
+import com.sinarowa.e_bus_ticket.domain.models.TicketWithRoute
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import com.sinarowa.e_bus_ticket.domain.usecase.CreateTripUseCase
 import com.sinarowa.e_bus_ticket.domain.usecase.EndTripUseCase
@@ -35,6 +37,7 @@ class TripViewModel @Inject constructor(
     private val createTripUseCase: CreateTripUseCase,
     private val routeRepository: RouteRepository,
     private val busRepository: BusRepository,
+    private val ticketRepository: TicketRepository,
     private val endTripUseCase: EndTripUseCase
 ) : ViewModel() {
 

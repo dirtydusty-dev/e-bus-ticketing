@@ -223,7 +223,6 @@ fun TileGrid(navController: NavController, tripWithRoute: TripWithRoute) {
     if (showDialog) {
         showReportSelectionDialog(
             navController = navController,
-            tripId = selectedTripId,
             onDismiss = { showDialog = false } // ✅ Close dialog when dismissed
         )
     }
@@ -231,30 +230,59 @@ fun TileGrid(navController: NavController, tripWithRoute: TripWithRoute) {
 
 
 @Composable
-fun showReportSelectionDialog(navController: NavController, tripId: String, onDismiss: () -> Unit) {
+fun showReportSelectionDialog(navController: NavController, onDismiss: () -> Unit) {
+    val options = listOf("Daily", "Trip", "Detailed")
+    var selectedOption by remember { mutableStateOf(options[0]) }
+
     AlertDialog(
-        onDismissRequest = { onDismiss() }, // ✅ Close dialog on outside click
-        title = { Text("Select Report Type") },
-        text = { Text("Choose which report you want to view.") },
+        onDismissRequest = onDismiss,
         confirmButton = {
-            Column {
-                Button(onClick = {
-                    navController.navigate("reports/Daily")
+            TextButton(
+                onClick = {
+                    navController.navigate("reports/$selectedOption")
                     onDismiss()
-                }) {
-                    Text("Daily Report")
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = {
-                    navController.navigate("reports/Trip")
-                    onDismiss()
-                }) {
-                    Text("Trip Report")
+            ) {
+                Text("OK", color = SkyBluePrimary)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = MaterialTheme.colorScheme.onSurface)
+            }
+        },
+        title = {
+            Text(
+                "Select Report Type",
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        },
+        text = {
+            Column {
+                options.forEach { option ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedOption = option }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedOption == option,
+                            onClick = { selectedOption = option }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(option, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                    }
                 }
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     )
 }
+
 
 
 

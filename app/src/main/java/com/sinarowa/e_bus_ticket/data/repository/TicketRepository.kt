@@ -4,6 +4,7 @@ import com.sinarowa.e_bus_ticket.data.local.dao.TicketDao
 import com.sinarowa.e_bus_ticket.data.local.entities.Ticket
 import com.sinarowa.e_bus_ticket.data.local.enums.SyncStatus
 import com.sinarowa.e_bus_ticket.data.local.enums.TicketStatus
+import com.sinarowa.e_bus_ticket.domain.models.TicketWithRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -31,6 +32,10 @@ class TicketRepository @Inject constructor(private val ticketDao: TicketDao) {
 
     suspend fun getAllTickets(): List<Ticket>{
         return ticketDao.getAllTickets()
+    }
+
+    suspend fun getTicketsWithRoute(tripId: String): List<TicketWithRoute>{
+        return ticketDao.getTicketsWithRoute(tripId)
     }
 
 }

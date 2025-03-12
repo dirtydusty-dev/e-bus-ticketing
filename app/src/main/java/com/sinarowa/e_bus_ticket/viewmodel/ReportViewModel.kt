@@ -10,7 +10,10 @@ import com.sinarowa.e_bus_ticket.data.local.entities.Expense
 import com.sinarowa.e_bus_ticket.data.repository.TicketRepository
 import com.sinarowa.e_bus_ticket.data.repository.ExpenseRepository
 import com.sinarowa.e_bus_ticket.data.repository.TripRepository
+import com.sinarowa.e_bus_ticket.domain.models.CityStat
 import com.sinarowa.e_bus_ticket.domain.models.ReportState
+import com.sinarowa.e_bus_ticket.domain.models.SegmentStat
+import com.sinarowa.e_bus_ticket.domain.models.TicketWithRoute
 import com.sinarowa.e_bus_ticket.domain.models.TripWithRoute
 import com.sinarowa.e_bus_ticket.utils.ReportUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,6 +37,59 @@ class ReportViewModel @Inject constructor(
     private val _state = MutableStateFlow(ReportState())
     val state: StateFlow<ReportState> get() = _state.asStateFlow()
 
+
+    /**
+     * 🚀 Load Detailed Stats Report
+     */
+    fun loadDetailedReport(context: Context) {
+        viewModelScope.launch {
+            Log.d("ReportViewModel", "🟢 Loading Detailed Stats Report...")
+            _state.value = _state.value.copy(isLoading = true, errorMessage = null)
+
+            try {
+                val trip = withContext(Dispatchers.IO) { tripRepository.getActiveTripWithRoute() }
+                val tickets = withContext(Dispatchers.IO) { ticketRepository.getTicketsWithRoute(trip?.trip?.tripId ?: "") }
+
+                val totalSales = tickets.sumOf { it.amount }
+
+                Log.d("ReportViewModel", "✅ Trip: ${trip?.trip?.tripId ?: "No Active Trip"}")
+                Log.d("ReportViewModel", "✅ Tickets: ${tickets.size}, Total Sales: $totalSales")
+
+                val formattedReport = ReportUtils.generateDetailedStatsReport(
+                    companyName = "Govasberg Services",
+                    date = getFormattedDate(),
+                    deviceId = getDeviceId(context),
+                    tripId = trip?.trip?.tripId ?: "N/A",
+                    tickets = tickets,
+                    cityStats = calculateCityStats(tickets),
+                    segmentStats = calculateSegmentStats(tickets)
+                )
+
+                _state.value = _state.value.copy(
+                    selectedTrip = trip,
+                    ticketsWithRoute = tickets,
+                    totalSales = totalSales,
+                    formattedReport = formattedReport,
+                    isLoading = false,
+                    reportType = "Detailed"
+                )
+
+                Log.d("ReportViewModel", "🟢 Detailed Stats Report Generated Successfully!")
+
+            } catch (e: Exception) {
+                Log.e("ReportViewModel", "❌ Error loading Detailed Stats Report: ${e.message}")
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    errorMessage = "Error loading detailed stats report: ${e.message}"
+                )
+            }
+        }
+    }
+
+
+
+
+
     /**
      * 🚀 Load Daily Sales Report
      */
@@ -56,7 +112,7 @@ class ReportViewModel @Inject constructor(
                 Log.d("ReportViewModel", "✅ Expenses: ${expenses.size}, Total Expenses: $totalExpenses")
 
                 val formattedReport = ReportUtils.generateDailySalesReport(
-                    companyName = "Speedlada Travels Limited",
+                    companyName = "Govasberg Services",
                     date = getFormattedDate(),
                     deviceId = getDeviceId(context),
                     tripId = trip?.trip?.tripId ?: "N/A",
@@ -118,7 +174,7 @@ class ReportViewModel @Inject constructor(
                 Log.d("ReportViewModel", "✅ Tickets: ${tickets.size}, Total Sales: $totalSales")
 
                 val formattedReport = ReportUtils.generateTripSalesReport(
-                    companyName = "Speedlada Travels Limited",
+                    companyName = "Govasberg Services",
                     date = getFormattedDate(),
                     deviceId = getDeviceId(context),
                     tripId = trip?.trip?.tripId ?: "N/A",
@@ -176,5 +232,30 @@ class ReportViewModel @Inject constructor(
     private fun getFormattedDate(): String {
         val dateFormat = SimpleDateFormat("dd/MM/yy EEE HH:mm", Locale.getDefault())
         return dateFormat.format(Date())
+    }
+
+    fun calculateSegmentStats(tickets: List<TicketWithRoute>): List<SegmentStat> {
+        return tickets.groupBy { Triple(it.startStationName, it.destinationStationName, it.paymentCategory) }
+            .map { (segment, tickets) ->
+                SegmentStat(
+                    from = segment.first,
+                    to = segment.second,
+                    ticketType = segment.third,
+                    count = tickets.size,
+                    amount = tickets.sumOf { it.amount }
+                )
+            }
+    }
+
+    fun calculateCityStats(tickets: List<TicketWithRoute>): List<CityStat> {
+        return tickets.groupBy { Pair(it.startStationName, it.paymentCategory) }
+            .map { (group, tickets) ->
+                CityStat(
+                    cityName = group.first,
+                    ticketType = group.second,
+                    count = tickets.size,
+                    amount = tickets.sumOf { it.amount }
+                )
+            }
     }
 }
